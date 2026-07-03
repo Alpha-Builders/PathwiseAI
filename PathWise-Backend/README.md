@@ -1,98 +1,138 @@
-<p align="center">
-  <a href="http://nestjs.com/" target="blank"><img src="https://nestjs.com/img/logo-small.svg" width="120" alt="Nest Logo" /></a>
-</p>
+# PathWise-AI Backend
 
-[circleci-image]: https://img.shields.io/circleci/build/github/nestjs/nest/master?token=abc123def456
-[circleci-url]: https://circleci.com/gh/nestjs/nest
+This repository powers the backend API for the PathWise-AI platform.
+It provides authentication, authorization, email verification, token management, and the data API used by the React frontend.
 
-  <p align="center">A progressive <a href="http://nodejs.org" target="_blank">Node.js</a> framework for building efficient and scalable server-side applications.</p>
-    <p align="center">
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/v/@nestjs/core.svg" alt="NPM Version" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/l/@nestjs/core.svg" alt="Package License" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/dm/@nestjs/common.svg" alt="NPM Downloads" /></a>
-<a href="https://circleci.com/gh/nestjs/nest" target="_blank"><img src="https://img.shields.io/circleci/build/github/nestjs/nest/master" alt="CircleCI" /></a>
-<a href="https://discord.gg/G7Qnnhy" target="_blank"><img src="https://img.shields.io/badge/discord-online-brightgreen.svg" alt="Discord"/></a>
-<a href="https://opencollective.com/nest#backer" target="_blank"><img src="https://opencollective.com/nest/backers/badge.svg" alt="Backers on Open Collective" /></a>
-<a href="https://opencollective.com/nest#sponsor" target="_blank"><img src="https://opencollective.com/nest/sponsors/badge.svg" alt="Sponsors on Open Collective" /></a>
-  <a href="https://paypal.me/kamilmysliwiec" target="_blank"><img src="https://img.shields.io/badge/Donate-PayPal-ff3f59.svg" alt="Donate us"/></a>
-    <a href="https://opencollective.com/nest#sponsor"  target="_blank"><img src="https://img.shields.io/badge/Support%20us-Open%20Collective-41B883.svg" alt="Support us"></a>
-  <a href="https://twitter.com/nestframework" target="_blank"><img src="https://img.shields.io/twitter/follow/nestframework.svg?style=social&label=Follow" alt="Follow us on Twitter"></a>
-</p>
-  <!--[![Backers on Open Collective](https://opencollective.com/nest/backers/badge.svg)](https://opencollective.com/nest#backer)
-  [![Sponsors on Open Collective](https://opencollective.com/nest/sponsors/badge.svg)](https://opencollective.com/nest#sponsor)-->
+## What this backend handles
 
-## Description
+- User registration, login, password reset, and email verification
+- JWT access and refresh token issuance
+- Auth-protected endpoints using Nest guards and Passport
+- Database access using Prisma ORM
+- SMTP email delivery for verification and password workflows
+- Health check endpoint for readiness monitoring
 
-[Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
+## Core technologies
 
-## Project setup
+- NestJS
+- Prisma
+- PostgreSQL/MySQL-compatible database via `DATABASE_URL`
+- `@nestjs/jwt` and `passport-jwt`
+- `@nestjs-modules/mailer` and `nodemailer`
+- `class-validator` and `class-transformer`
+- Joi-based environment validation
+- Jest and Supertest for tests
 
-```bash
-$ npm install
-```
+## Repository structure
 
-## Compile and run the project
+- `src/main.ts` — application bootstrap and server start logic
+- `src/app.module.ts` — root module composing feature modules
+- `src/auth/` — auth controller, service, JWT strategy, guard, DTO definitions, and utility functions
+- `src/config/` — config factories, env validation, database settings, mail settings, and Swagger setup
+- `src/prisma/` — Prisma service and module wrapper for database injection
+- `src/health/` — health endpoint for uptime/readiness
+- `prisma/schema.prisma` — data model and database schema definitions
+- `prisma/migrations/` — generated migration history
 
-```bash
-# development
-$ npm run start
+## Setup
 
-# watch mode
-$ npm run start:dev
-
-# production mode
-$ npm run start:prod
-```
-
-## Run tests
+### Install dependencies
 
 ```bash
-# unit tests
-$ npm run test
-
-# e2e tests
-$ npm run test:e2e
-
-# test coverage
-$ npm run test:cov
+cd PathWise-Backend
+npm install
 ```
 
-## Deployment
+### Environment variables
 
-When you're ready to deploy your NestJS application to production, there are some key steps you can take to ensure it runs as efficiently as possible. Check out the [deployment documentation](https://docs.nestjs.com/deployment) for more information.
+Copy `.env.example` or create `.env` with the following required values:
 
-If you are looking for a cloud-based platform to deploy your NestJS application, check out [Mau](https://mau.nestjs.com), our official platform for deploying NestJS applications on AWS. Mau makes deployment straightforward and fast, requiring just a few simple steps:
+```env
+PORT=3000
+NODE_ENV=development
+APP_NAME=PathWise-AI
+DATABASE_URL="postgresql://user:password@localhost:5432/pathwise"
+JWT_SECRET=your_jwt_secret
+JWT_REFRESH_SECRET=your_jwt_refresh_secret
+JWT_SECRET_EXPIRES_IN=15m
+JWT_REFRESH_EXPIRES_IN=7d
+MAIL_HOST=smtp.example.com
+MAIL_PORT=587
+MAIL_USER=your@email.com
+MAIL_PASS=your_email_password
+```
+
+> Env validation is enforced in `src/config/env.validation.ts`.
+
+### Prisma and database
+
+Generate Prisma client and apply migrations:
 
 ```bash
-$ npm install -g @nestjs/mau
-$ mau deploy
+npx prisma generate
+npx prisma migrate deploy
 ```
 
-With Mau, you can deploy your application in just a few clicks, allowing you to focus on building features rather than managing infrastructure.
+For local development, you can use:
 
-## Resources
+```bash
+npx prisma migrate dev
+```
 
-Check out a few resources that may come in handy when working with NestJS:
+Inspect data with Prisma Studio:
 
-- Visit the [NestJS Documentation](https://docs.nestjs.com) to learn more about the framework.
-- For questions and support, please visit our [Discord channel](https://discord.gg/G7Qnnhy).
-- To dive deeper and get more hands-on experience, check out our official video [courses](https://courses.nestjs.com/).
-- Deploy your application to AWS with the help of [NestJS Mau](https://mau.nestjs.com) in just a few clicks.
-- Visualize your application graph and interact with the NestJS application in real-time using [NestJS Devtools](https://devtools.nestjs.com).
-- Need help with your project (part-time to full-time)? Check out our official [enterprise support](https://enterprise.nestjs.com).
-- To stay in the loop and get updates, follow us on [X](https://x.com/nestframework) and [LinkedIn](https://linkedin.com/company/nestjs).
-- Looking for a job, or have a job to offer? Check out our official [Jobs board](https://jobs.nestjs.com).
+```bash
+npx prisma studio
+```
 
-## Support
+## Running locally
 
-Nest is an MIT-licensed open source project. It can grow thanks to the sponsors and support by the amazing backers. If you'd like to join them, please [read more here](https://docs.nestjs.com/support).
+```bash
+npm run start:dev
+```
 
-## Stay in touch
+Available scripts:
 
-- Author - [Kamil Myśliwiec](https://twitter.com/kammysliwiec)
-- Website - [https://nestjs.com](https://nestjs.com/)
-- Twitter - [@nestframework](https://twitter.com/nestframework)
+- `npm run start` — start the server once
+- `npm run start:dev` — watch mode with hot reload
+- `npm run start:prod` — run built output from `dist/`
+- `npm run lint` — run ESLint and fix auto-fixable issues
+- `npm run format` — format source files with Prettier
+- `npm run test` — run Jest unit tests
+- `npm run test:e2e` — run end-to-end tests
+- `npm run test:cov` — generate coverage report
 
-## License
+## Key developer notes
 
-Nest is [MIT licensed](https://github.com/nestjs/nest/blob/master/LICENSE).
+- Auth flows are implemented in `src/auth/auth.service.ts` and exposed through `src/auth/auth.controller.ts`.
+- JWT validation is defined in `src/auth/strategies/jwt.strategy.ts` and applied via `src/auth/guards/jwt-auth.guard.ts`.
+- Request payloads are shaped by DTO classes in `src/auth/dto/`.
+- The Prisma client is provided by `src/prisma/prisma.service.ts` and injected where needed.
+- App config values are composed in `src/config/app.config.ts`, `src/config/jwt.config.ts`, and `src/config/mail.config.ts`.
+- Health checks are exposed via `src/health/health.controller.ts`.
+
+## Testing
+
+```bash
+npm run test
+npm run test:e2e
+```
+
+Tests are configured using Jest and `ts-jest` with the Jest config in `package.json` and `test/jest-e2e.json`.
+
+## How to contribute
+
+- Keep endpoint contracts stable and documented in the controller methods.
+- Add new DTOs for request validation when endpoint payloads change.
+- Update `prisma/schema.prisma` for new database models, then run `npx prisma generate`.
+- Keep business logic in services and keep controllers thin.
+- Use modules to separate features and keep the dependency graph clean.
+
+## Useful commands
+
+```bash
+npm run lint
+npm run format
+npx prisma generate
+npx prisma studio
+```

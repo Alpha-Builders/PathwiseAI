@@ -1,0 +1,69 @@
+@import "tailwindcss";
+
+@theme {
+  /* ---- Color tokens: PathWise warm-paper palette ---- */
+  --color-paper: #F5F1E6;         /* base background */
+  --color-paper-soft: #EFEADC;    /* recessed sections */
+  --color-card: #FBF9F2;          /* card surface */
+  --color-card-line: #E4DCC5;     /* hairline borders */
+
+  --color-ink: #21301F;           /* headings / high-contrast text */
+  --color-ink-soft: #5B6355;      /* body copy */
+  --color-ink-faint: #8A9080;     /* captions / meta */
+
+  --color-forest: #2E4A34;        /* primary green - buttons, active states */
+  --color-forest-dark: #1F3524;   /* hover / pressed */
+  --color-sage: #7C9A7E;          /* mid accent */
+  --color-sage-bg: #DCE7D6;       /* icon chip bg (high school) */
+  --color-sage-ink: #3C6B44;      /* icon chip fg */
+
+  --color-clay: #B4703E;          /* secondary accent - college icon / highlights */
+  --color-clay-bg: #EFE0C7;       /* icon chip bg (college) */
+
+  --color-cream-line: #DCD3B8;
+
+  /* ---- Type ---- */
+  --font-display: "Fraunces", "Iowan Old Style", serif;
+  --font-body: "Inter", ui-sans-serif, system-ui, sans-serif;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  background: var(--color-paper);
+  color: var(--color-ink);
+  font-family: var(--font-body);
+}
+
+.font-display {
+  font-family: var(--font-display);
+}
+
+/* subtle grain/texture overlay used behind hero + onboarding sections */
+.bg-grain {
+  background-image:
+    radial-gradient(circle at 1px 1px, rgba(33,48,31,0.06) 1px, transparent 0);
+  background-size: 22px 22px;
+}
+
+::selection {
+  background: var(--color-forest);
+  color: var(--color-paper);
+}
+
+/* focus ring - keep visible for a11y, styled to match palette */
+:focus-visible {
+  outline: 2px solid var(--color-forest);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
