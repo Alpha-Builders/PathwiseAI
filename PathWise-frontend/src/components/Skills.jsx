@@ -115,25 +115,17 @@ export default function Skills() {
     try {
       const prompt = `Find REAL, WORKING, and high-quality learning resources for the skill: "${skillName}".
 You must return exactly:
-- 4 documentation links/guides/articles
-- 2 YouTube video tutorial links from reputable tech channels
+- 1 online documentation link/guide/article
+- 1 YouTube video tutorial link from a reputable tech channel
 
 IMPORTANT: Only return real, working URLs. Do not generate fake URLs.
 Format the response as a JSON object with this exact structure:
 {
-  "resources": [
-    { "title": "Actual Document/Guide Title 1", "url": "https://actual-link-to-docs-1.com", "type": "Documentation" },
-    { "title": "Actual Document/Guide Title 2", "url": "https://actual-link-to-docs-2.com", "type": "Guide" },
-    { "title": "Actual Document/Guide Title 3", "url": "https://actual-link-to-docs-3.com", "type": "Course" },
-    { "title": "Actual Document/Guide Title 4", "url": "https://actual-link-to-docs-4.com", "type": "Article" }
-  ],
-  "videos": [
-    { "title": "Video Tutorial Title 1", "url": "https://www.youtube.com/watch?v=id1", "channel": "Channel Name 1" },
-    { "title": "Video Tutorial Title 2", "url": "https://www.youtube.com/watch?v=id2", "channel": "Channel Name 2" }
-  ]
+  "resource": { "title": "Actual Document/Guide Title", "url": "https://actual-link-to-docs.com", "type": "Documentation" },
+  "video": { "title": "Video Tutorial Title", "url": "https://www.youtube.com/watch?v=id", "channel": "Channel Name" }
 }
 
-Ensure the YouTube URLs are real and have the format: https://www.youtube.com/watch?v=VIDEO_ID.
+Ensure the YouTube URL is real and has the format: https://www.youtube.com/watch?v=VIDEO_ID.
 Return ONLY the JSON block.`;
 
       const botResponse = await callNimApi({

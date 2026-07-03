@@ -91,7 +91,7 @@ const createPageUrl = (pageName) => {
               <div className="w-12 h-12 bg-blue-500 rounded-2xl flex items-center justify-center mx-auto mb-3">
                 <Target className="w-6 h-6 text-ink" />
               </div>
-              <h3 className="font-bold text-gray-900 mb-1">20 Questions</h3>
+              <h3 className="font-bold text-gray-900 mb-1">8 Questions</h3>
               <p className="text-sm text-gray-600">Multiple choice format</p>
             </div>
 
@@ -99,7 +99,7 @@ const createPageUrl = (pageName) => {
               <div className="w-12 h-12 bg-green-500 rounded-2xl flex items-center justify-center mx-auto mb-3">
                 <Clock className="w-6 h-6 text-ink" />
               </div>
-              <h3 className="font-bold text-gray-900 mb-1">30 Minutes</h3>
+              <h3 className="font-bold text-gray-900 mb-1">15 Minutes</h3>
               <p className="text-sm text-gray-600">Recommended time limit</p>
             </div>
 
@@ -121,7 +121,7 @@ const createPageUrl = (pageName) => {
                 <ul className="text-sm text-amber-800 space-y-1">
                   <li>• Answer all questions to the best of your ability</li>
                   <li>• You can review and change answers before submitting</li>
-                  <li>• Passing score is 75% (15 out of 20 questions)</li>
+                  <li>• Passing score is 75% (6 out of 8 questions)</li>
                   <li>• You can retake the assessment if needed</li>
                 </ul>
               </div>

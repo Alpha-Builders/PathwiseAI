@@ -70,17 +70,17 @@ export default function Test() {
     setQuestionError(null);
 
     try {
-      const message = `Generate 20 multiple-choice assessment questions for the skill: "${skillName}".
+      const message = `Generate 8 multiple-choice assessment questions for the skill: "${skillName}".
       
 Requirements:
-1. Create exactly 20 questions that test practical knowledge and understanding
+1. Create exactly 8 questions that test practical knowledge and understanding
 2. Each question should have exactly 4 options (A, B, C, D)
 3. Questions should range from beginner to intermediate difficulty
 4. Focus on real-world application and best practices
 5. Include both conceptual and practical questions
 
 Format your response as a valid JSON array of objects, with no other text around it. Each object must have:
-- "id": unique integer (1-20)
+- "id": unique integer (1-8)
 - "question": "Question text"
 - "options": ["Option A", "Option B", "Option C", "Option D"]
 - "correctAnswer": integer (0 to 3 corresponding to index of correct option)
@@ -251,7 +251,7 @@ Example:
             </p>
             <div className="bg-blue-500/20 rounded-lg p-4">
               <p className="text-sm text-blue-300">
-                🤖 Creating 20 tailored questions to test your knowledge
+                🤖 Creating 8 tailored questions to test your knowledge
               </p>
             </div>
           </div>
