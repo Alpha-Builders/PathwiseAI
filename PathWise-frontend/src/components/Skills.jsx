@@ -16,6 +16,7 @@ import {
   X,
 } from "lucide-react";
 import skillsData from "../data/SkillsData";
+import { callNimApi } from "../utils/nimApi";
 
 const normalizeRoleKey = (raw) => {
   if (!raw) return "";
@@ -37,7 +38,8 @@ export default function Skills() {
   const [selectedRole, setSelectedRole] = useState("");
   const [skills, setSkills] = useState([]);
   const [completedSkills, setCompletedSkills] = useState(new Set());
-    const [showVideo, setShowVideo] = useState(false);
+  const [activeVideoUrl, setActiveVideoUrl] = useState(null);
+  const [activeVideoTitle, setActiveVideoTitle] = useState("");
   
   // AI API related states
   const [skillResources, setSkillResources] = useState({});
@@ -105,80 +107,45 @@ export default function Skills() {
   }, [completedSkills, selectedCourse, selectedPath, selectedRole]);
 
   // AI API Functions (adapted from Skillsnew.jsx)
+  // AI API Functions using NVIDIA NIM API
   const fetchResourcesForSkill = async (skillId, skillName) => {
     setLoadingResources(prev => ({ ...prev, [skillId]: true }));
     setResourceErrors(prev => ({ ...prev, [skillId]: null }));
 
     try {
-      // Construct the prompt for your AI agent
-      const message = `Find REAL, EXISTING learning resources for the skill: "${skillName}". 
+      const prompt = `Find REAL, WORKING, and high-quality learning resources for the skill: "${skillName}".
+You must return exactly:
+- 4 documentation links/guides/articles
+- 2 YouTube video tutorial links from reputable tech channels
 
-CRITICAL: Only provide URLs that you know actually exist. Do NOT generate fake or placeholder URLs.
-
-Please provide exactly:
-1. One high-quality online resource (course, article, or guide) with REAL title and REAL URL
-2. One YouTube video tutorial with REAL title and REAL URL from an actual channel
-
-If you're not certain about specific URLs, use well-known educational platforms like:
-- For resources: MDN, W3Schools, freeCodeCamp, Khan Academy, Coursera, edX
-- For videos: Channels like Traversy Media, Programming with Mosh, Academind, Net Ninja
-
-Focus on practical, beginner-friendly resources that can help someone learn this specific skill. 
-Format the response as JSON with this structure:
+IMPORTANT: Only return real, working URLs. Do not generate fake URLs.
+Format the response as a JSON object with this exact structure:
 {
-  "resource": {
-    "title": "Actual Resource Title",
-    "url": "https://actual-working-url.com",
-    "type": "course/article/guide"
-  },
-  "video": {
-    "title": "Actual Video Title", 
-    "url": "https://youtube.com/watch?v=REAL_VIDEO_ID",
-    "channel": "Real Channel Name"
-  }
+  "resources": [
+    { "title": "Actual Document/Guide Title 1", "url": "https://actual-link-to-docs-1.com", "type": "Documentation" },
+    { "title": "Actual Document/Guide Title 2", "url": "https://actual-link-to-docs-2.com", "type": "Guide" },
+    { "title": "Actual Document/Guide Title 3", "url": "https://actual-link-to-docs-3.com", "type": "Course" },
+    { "title": "Actual Document/Guide Title 4", "url": "https://actual-link-to-docs-4.com", "type": "Article" }
+  ],
+  "videos": [
+    { "title": "Video Tutorial Title 1", "url": "https://www.youtube.com/watch?v=id1", "channel": "Channel Name 1" },
+    { "title": "Video Tutorial Title 2", "url": "https://www.youtube.com/watch?v=id2", "channel": "Channel Name 2" }
+  ]
 }
 
-IMPORTANT: If you cannot provide real URLs, respond with null values instead of fake ones.`;
+Ensure the YouTube URLs are real and have the format: https://www.youtube.com/watch?v=VIDEO_ID.
+Return ONLY the JSON block.`;
 
-      // Use the same pattern as DeliveryAss.jsx
-      const response = await fetch(`${API_BASE_URL}/chat`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json'
-        },
-        body: JSON.stringify({
-          messages: [{ role: 'user', content: message }]
-        })
+      const botResponse = await callNimApi({
+        messages: [{ role: 'user', content: prompt }],
+        temperature: 0.1,
+        max_tokens: 2048
       });
 
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-      }
-
-      const data = await response.json();
-      let botResponse = '';
-      
-      // Parse response using the same pattern as DeliveryAss.jsx
-      if (data.choices && data.choices.length > 0 && data.choices[0].message && data.choices[0].message.content) {
-        botResponse = data.choices[0].message.content;
-      } else if (data.response) {
-        botResponse = data.response;
-      } else if (data.output) {
-        botResponse = data.output;
-      } else if (data.value) {
-        botResponse = data.value;
-      } else if (typeof data === 'string') {
-        botResponse = data;
-      } else {
-        botResponse = 'No response content received from agent';
-      }
-
-      // Parse the AI response to extract resource information
       const resources = parseResourcesFromResponse(botResponse);
       
       // If AI resources are invalid, try fallback
-      if ((!resources.resource || !resources.video) && !resources.resource?.url && !resources.video?.url) {
+      if ((!resources.resources || resources.resources.length === 0) && (!resources.videos || resources.videos.length === 0)) {
         const fallback = getFallbackResources(skillName);
         if (fallback) {
           console.log(`Using fallback resources for ${skillName}`);
@@ -197,34 +164,14 @@ IMPORTANT: If you cannot provide real URLs, respond with null values instead of 
 
     } catch (error) {
       console.error(`Error fetching resources for ${skillName}:`, error);
-      
-      // Try fallback endpoint like DeliveryAss.jsx does
-      try {
-        const message = `Find learning resources for the skill: "${skillName}". Please provide one online resource and one YouTube video with titles and URLs.`;
-        
-        const fallbackResponse = await fetch(`${API_BASE_URL}/generate`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Accept': 'application/json'
-          },
-          body: JSON.stringify({ input_message: message })
-        });
-
-        if (!fallbackResponse.ok) {
-          throw new Error(`HTTP ${fallbackResponse.status}: ${fallbackResponse.statusText}`);
-        }
-
-        const fallbackData = await fallbackResponse.json();
-        const fallbackResponse_text = fallbackData.value || fallbackData.response || fallbackData.output || 'Resource service unavailable';
-        
-        const resources = parseResourcesFromResponse(fallbackResponse_text);
+      // Try fallback immediately
+      const fallback = getFallbackResources(skillName);
+      if (fallback) {
         setSkillResources(prev => ({
           ...prev,
-          [skillId]: resources
+          [skillId]: fallback
         }));
-
-      } catch (fallbackError) {
+      } else {
         setResourceErrors(prev => ({
           ...prev,
           [skillId]: `Failed to fetch resources: ${error.message}`
@@ -235,24 +182,56 @@ IMPORTANT: If you cannot provide real URLs, respond with null values instead of 
     }
   };
 
-  // Fallback resources for common skills
+  // Fallback resources for common skills (providing 4 docs and 2 videos)
   const getFallbackResources = (skillName) => {
     const fallbacks = {
       'javascript': {
-        resource: { title: "JavaScript Guide - MDN", url: "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Guide", type: "guide" },
-        video: { title: "JavaScript Tutorial for Beginners", url: "https://youtube.com/watch?v=W6NZfCO5SIk", channel: "Programming with Mosh" }
+        resources: [
+          { title: "JavaScript Guide - MDN Web Docs", url: "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Guide", type: "Documentation" },
+          { title: "JavaScript Tutorial for Beginners - W3Schools", url: "https://www.w3schools.com/js/", type: "Course" },
+          { title: "The Modern JavaScript Tutorial - Javascript.info", url: "https://javascript.info/", type: "Guide" },
+          { title: "Eloquent JavaScript Book - 3rd Edition", url: "https://eloquentjavascript.net/", type: "Book" }
+        ],
+        videos: [
+          { title: "JavaScript Tutorial for Beginners", url: "https://www.youtube.com/watch?v=W6NZfCO5SIk", channel: "Programming with Mosh" },
+          { title: "JavaScript Full Course for Beginners", url: "https://www.youtube.com/watch?v=hadx4vAcdwY", channel: "freeCodeCamp.org" }
+        ]
       },
       'html': {
-        resource: { title: "HTML Tutorial - W3Schools", url: "https://www.w3schools.com/html/", type: "course" },
-        video: { title: "HTML Full Course - Build a Website Tutorial", url: "https://youtube.com/watch?v=pQN-pnXPaVg", channel: "freeCodeCamp.org" }
+        resources: [
+          { title: "HTML Basics - MDN Web Docs", url: "https://developer.mozilla.org/en-US/docs/Learn/Getting_started_with_the_web/HTML_basics", type: "Documentation" },
+          { title: "HTML Tutorial - W3Schools", url: "https://www.w3schools.com/html/", type: "Course" },
+          { title: "Learn HTML - Web.dev by Google", url: "https://web.dev/learn/html/", type: "Guide" },
+          { title: "HTML Living Standard - WHATWG", url: "https://html.spec.whatwg.org/multipage/", type: "Specification" }
+        ],
+        videos: [
+          { title: "HTML Full Course - Build a Website", url: "https://www.youtube.com/watch?v=pQN-pnXPaVg", channel: "freeCodeCamp.org" },
+          { title: "HTML Tutorial for Beginners", url: "https://www.youtube.com/watch?v=UB1O30zR-EE", channel: "Programming with Mosh" }
+        ]
       },
       'css': {
-        resource: { title: "CSS Tutorial - W3Schools", url: "https://www.w3schools.com/css/", type: "course" },
-        video: { title: "CSS Tutorial - Zero to Hero", url: "https://youtube.com/watch?v=1Rs2ND1ryYc", channel: "freeCodeCamp.org" }
+        resources: [
+          { title: "CSS First Steps - MDN Web Docs", url: "https://developer.mozilla.org/en-US/docs/Learn/CSS/First_steps", type: "Documentation" },
+          { title: "CSS Tutorial - W3Schools", url: "https://www.w3schools.com/css/", type: "Course" },
+          { title: "Learn CSS - Web.dev by Google", url: "https://web.dev/learn/css/", type: "Guide" },
+          { title: "A Complete Guide to Flexbox - CSS-Tricks", url: "https://css-tricks.com/snippets/css/a-guide-to-flexbox/", type: "Guide" }
+        ],
+        videos: [
+          { title: "CSS Tutorial - Zero to Hero", url: "https://www.youtube.com/watch?v=1Rs2ND1ryYc", channel: "freeCodeCamp.org" },
+          { title: "CSS Tutorial for Beginners", url: "https://www.youtube.com/watch?v=yfoY53QXEnI", channel: "Programming with Mosh" }
+        ]
       },
       'react': {
-        resource: { title: "React Documentation", url: "https://react.dev/learn", type: "guide" },
-        video: { title: "React Course - Beginner's Tutorial for React JavaScript Library", url: "https://youtube.com/watch?v=bMknfKXIFA8", channel: "freeCodeCamp.org" }
+        resources: [
+          { title: "React Reference & Quick Start Guide - React.dev", url: "https://react.dev/learn", type: "Documentation" },
+          { title: "React Component API Reference - React.dev", url: "https://react.dev/reference/react", type: "Documentation" },
+          { title: "React Tutorial - W3Schools", url: "https://www.w3schools.com/react/", type: "Course" },
+          { title: "React Hooks Guide & Reference - React.dev", url: "https://react.dev/reference/react/hooks", type: "Guide" }
+        ],
+        videos: [
+          { title: "React Course - Beginner's Tutorial", url: "https://www.youtube.com/watch?v=bMknfKXIFA8", channel: "freeCodeCamp.org" },
+          { title: "ReactJS Tutorial for Beginners", url: "https://www.youtube.com/watch?v=Ke90Tje7VS0", channel: "Programming with Mosh" }
+        ]
       }
     };
 
@@ -262,10 +241,22 @@ IMPORTANT: If you cannot provide real URLs, respond with null values instead of 
         return resources;
       }
     }
-    return null;
+    // Generic fallback for any skill
+    return {
+      resources: [
+        { title: `${skillName} Reference - MDN Web Docs`, url: "https://developer.mozilla.org/", type: "Documentation" },
+        { title: `${skillName} Practical Guide - W3Schools`, url: "https://www.w3schools.com/", type: "Guide" },
+        { title: `${skillName} Tutorials - freeCodeCamp`, url: "https://www.freecodecamp.org/news/", type: "Course" },
+        { title: `${skillName} Official Documentation`, url: "https://docs.microsoft.com/", type: "Documentation" }
+      ],
+      videos: [
+        { title: `${skillName} Tutorial for Beginners`, url: "https://www.youtube.com/watch?v=W6NZfCO5SIk", channel: "Programming with Mosh" },
+        { title: `${skillName} Crash Course`, url: "https://www.youtube.com/watch?v=hadx4vAcdwY", channel: "freeCodeCamp.org" }
+      ]
+    };
   };
 
-  // Function to validate YouTube URLs (basic check)
+  // Function to validate YouTube URLs
   const isValidYouTubeUrl = (url) => {
     if (!url) return false;
     const youtubeRegex = /^(https?:\/\/)?(www\.)?(youtube\.com\/watch\?v=|youtu\.be\/)([a-zA-Z0-9_-]{11})/;
@@ -289,28 +280,23 @@ IMPORTANT: If you cannot provide real URLs, respond with null values instead of 
       const jsonMatch = aiResponse.match(/\{[\s\S]*\}/);
       if (jsonMatch) {
         const parsed = JSON.parse(jsonMatch[0]);
-        return parsed;
+        // Handle both structure: { resources: [], videos: [] } and old structure: { resource: {}, video: {} }
+        if (parsed.resources && parsed.videos) {
+          return {
+            resources: Array.isArray(parsed.resources) ? parsed.resources.filter(r => isValidUrl(r.url)) : [],
+            videos: Array.isArray(parsed.videos) ? parsed.videos.filter(v => isValidYouTubeUrl(v.url)) : []
+          };
+        } else if (parsed.resource && parsed.video) {
+          return {
+            resources: [parsed.resource],
+            videos: [parsed.video]
+          };
+        }
       }
-
-      // Fallback: Parse manually if JSON parsing fails
-      const resourceMatch = aiResponse.match(/(?:resource|course|article|guide).*?title[:\s]*["']([^"']+)["'].*?url[:\s]*["']([^"']+)["']/is);
-      const videoMatch = aiResponse.match(/(?:video|youtube).*?title[:\s]*["']([^"']+)["'].*?url[:\s]*["']([^"']+)["']/is);
-
-      return {
-        resource: resourceMatch && isValidUrl(resourceMatch[2]) ? {
-          title: resourceMatch[1],
-          url: resourceMatch[2],
-          type: "resource"
-        } : null,
-        video: videoMatch && isValidYouTubeUrl(videoMatch[2]) ? {
-          title: videoMatch[1],
-          url: videoMatch[2],
-          channel: "Unknown Channel"
-        } : null
-      };
+      return { resources: [], videos: [] };
     } catch (error) {
       console.error('Error parsing AI response:', error);
-      return { resource: null, video: null };
+      return { resources: [], videos: [] };
     }
   };
 
@@ -514,70 +500,63 @@ IMPORTANT: If you cannot provide real URLs, respond with null values instead of 
                             </button>
                           </div>
                         ) : resources ? (
-                          <div className="space-y-3">
-                            {/* Online Resource */}
-                            {resources.resource && (
-                              <div 
-                                className="flex items-center gap-3 p-3 bg-blue-50 border border-blue-200 rounded-xl hover:bg-blue-100 transition-colors group cursor-pointer"
-                                onClick={() => openExternalLink(resources.resource.url)}
-                              >
-                                <BookOpen className="w-4 h-4 text-blue-500" />
-                                <div className="flex-1">
-                                  <span className="text-sm font-medium text-blue-700 block">
-                                    {resources.resource.title}
-                                  </span>
-                                  <span className="text-xs text-blue-500">
-                                    {resources.resource.type?.toUpperCase() || 'RESOURCE'}
-                                  </span>
+                          <div className="space-y-4">
+                            {/* Online Resources (Documentation) */}
+                            {((resources.resources || (resources.resource ? [resources.resource] : []))).length > 0 && (
+                              <div>
+                                <h5 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Documentation & Guides</h5>
+                                <div className="grid md:grid-cols-2 gap-3">
+                                  {((resources.resources || [resources.resource])).map((doc, idx) => doc && (
+                                    <div 
+                                      key={idx}
+                                      className="flex items-center gap-3 p-3 bg-blue-50 border border-blue-200 rounded-xl hover:bg-blue-100 transition-colors group cursor-pointer"
+                                      onClick={() => openExternalLink(doc.url)}
+                                    >
+                                      <BookOpen className="w-4 h-4 text-blue-500 shrink-0" />
+                                      <div className="flex-1 min-w-0">
+                                        <span className="text-sm font-medium text-blue-700 block truncate">
+                                          {doc.title}
+                                        </span>
+                                        <span className="text-xs text-blue-500">
+                                          {doc.type?.toUpperCase() || 'DOCUMENTATION'}
+                                        </span>
+                                      </div>
+                                      <ExternalLink className="w-4 h-4 text-blue-500 shrink-0 group-hover:text-blue-700" />
+                                    </div>
+                                  ))}
                                 </div>
-                                <ExternalLink className="w-4 h-4 text-blue-500 group-hover:text-blue-700" />
                               </div>
                             )}
 
-                            {/* YouTube Video */}
-                              {resources.video && (
-        <div
-          className="flex items-center gap-3 p-3 bg-red-50 border border-red-200 rounded-xl hover:bg-red-100 transition-colors group cursor-pointer"
-          onClick={() => setShowVideo(true)}
-        >
-          <Video className="w-4 h-4 text-red-500" />
-          <div className="flex-1">
-            <span className="text-sm font-medium text-red-700 block">
-              {resources.video.title}
-            </span>
-            <span className="text-xs text-red-500">
-              YOUTUBE VIDEO {resources.video.channel && `• ${resources.video.channel}`}
-            </span>
-          </div>
-          <ExternalLink className="w-4 h-4 text-red-500 group-hover:text-red-700" />
-        </div>
-      )}
-
-      {/* Popup Modal */}
-      {showVideo && (
-        <div className="fixed bottom-4 left-4 bg-white rounded-xl shadow-lg border p-2 w-80 z-50">
-          {/* Close Button */}
-          <button
-            className="absolute top-2 right-2 text-gray-500 hover:text-black"
-            onClick={() => setShowVideo(false)}
-          >
-            <X className="w-5 h-5" />
-          </button>
-
-          {/* Embedded YouTube Video */}
-          <div className="aspect-w-16 aspect-h-9">
-            <iframe
-              className="w-full h-full rounded-lg"
-              src={`https://www.youtube.com/embed/${getYouTubeId(resources.video.url)}`}
-              title={resources.video.title}
-              frameBorder="0"
-              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-              allowFullScreen
-            ></iframe>
-          </div>
-        </div>
-      )}
-                             
+                            {/* YouTube Videos */}
+                            {((resources.videos || (resources.video ? [resources.video] : []))).length > 0 && (
+                              <div className="mt-3">
+                                <h5 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Video Tutorials</h5>
+                                <div className="grid md:grid-cols-2 gap-3">
+                                  {((resources.videos || [resources.video])).map((vid, idx) => vid && (
+                                    <div
+                                      key={idx}
+                                      className="flex items-center gap-3 p-3 bg-red-50 border border-red-200 rounded-xl hover:bg-red-100 transition-colors group cursor-pointer"
+                                      onClick={() => {
+                                        setActiveVideoUrl(vid.url);
+                                        setActiveVideoTitle(vid.title);
+                                      }}
+                                    >
+                                      <Video className="w-4 h-4 text-red-500 shrink-0" />
+                                      <div className="flex-1 min-w-0">
+                                        <span className="text-sm font-medium text-red-700 block truncate">
+                                          {vid.title}
+                                        </span>
+                                        <span className="text-xs text-red-500">
+                                          YOUTUBE VIDEO {vid.channel && `• ${vid.channel}`}
+                                        </span>
+                                      </div>
+                                      <ExternalLink className="w-4 h-4 text-red-500 shrink-0 group-hover:text-red-700" />
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
                           </div>
                         ) : (
                           <div className="bg-gray-50 border border-gray-200 rounded-xl p-4">
@@ -627,6 +606,29 @@ IMPORTANT: If you cannot provide real URLs, respond with null values instead of 
           )}
         </div>
         <SkillTracker skills={skills} completedSkills={completedSkills} />
+        {activeVideoUrl && (
+          <div className="fixed bottom-4 left-4 bg-white rounded-2xl shadow-2xl border border-gray-200 p-4 w-96 z-50">
+            <div className="flex justify-between items-center mb-3">
+              <span className="text-xs font-semibold text-gray-500 truncate max-w-[240px]">{activeVideoTitle}</span>
+              <button
+                className="text-gray-500 hover:text-black cursor-pointer bg-gray-100 hover:bg-gray-200 p-1 rounded-full transition-colors"
+                onClick={() => setActiveVideoUrl(null)}
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            <div className="relative rounded-lg overflow-hidden border border-gray-100 shadow-inner" style={{ paddingBottom: '56.25%', height: 0 }}>
+              <iframe
+                className="absolute top-0 left-0 w-full h-full"
+                src={`https://www.youtube.com/embed/${getYouTubeId(activeVideoUrl)}`}
+                title={activeVideoTitle}
+                frameBorder="0"
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                allowFullScreen
+              ></iframe>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

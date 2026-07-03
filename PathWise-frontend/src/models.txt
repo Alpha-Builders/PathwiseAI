@@ -1,0 +1,224 @@
+z-ai
+Z.ai
+Downloadable
+Free Endpoint
+glm-5.2
+GLM-5.2 is a flagship LLM for agentic workflows, coding, and long-horizon reasoning tasks.
+Agentic AI
++3
+Today
+nvidia
+NVIDIA
+Downloadable
+nemotron-ocr-v2
+Nemotron OCR v2 is a state-of-the-art multilingual text recognition model designed for robust end-to-end optical character recognition (OCR) on complex real-world images.
+Table Extraction
++4
+3K
+8d
+minimaxai
+Minimaxai
+Free Endpoint
+minimax-m3
+MiniMax M3 Preview is a multimodal MoE vision-language model with strong reasoning, coding, and tool-calling capabilities.
+coding
++2
+6M
+20d
+google
+Google
+Downloadable
+Free Endpoint
+diffusiongemma-26b-a4b-it
+Diffusion-based 26B parameter LLM enabling parallel token generation for real-time text apps
+diffusion-llm
++2
+3M
+22d
+nvidia
+NVIDIA
+Downloadable
+Free Endpoint
+nemotron-3-ultra-550b-a55b
+Open, efficient hybrid Mamba-Transformer MoE with 1M context, excelling in agentic reasoning, coding, planning, tool calling, and more
+Agent
++4
+8M
+29d
+Resemble.AI
+Downloadable
+chatterbox-multilingual-tts
+Natural and expressive voices in 23 languages. For voice agents and brand ambassadors.
+TTS
++4
+7K
+29d
+nvidia
+NVIDIA
+Downloadable
+Free Endpoint
+nemotron-3.5-content-safety
+Multilingual, multimodal model for detecting unsafe and toxic content.
+llm safety
++3
+2M
+1mo
+nvidia
+NVIDIA
+Free Endpoint
+cosmos3-nano
+Generates physics-aware videos from text prompts or an image prompt for physical AI development.
+autonomous vehicles
++5
+2K
+1mo
+nvidia
+NVIDIA
+Downloadable
+Free Endpoint
+cosmos3-nano-reasoner
+Vision language model that excels in understanding the physical world using structured reasoning on videos or images.
+video understanding
++8
+2K
+1mo
+stepfun-ai
+Stepfun-ai
+Downloadable
+Free Endpoint
+step-3.7-flash
+A sparse MoE multimodal reasoning model good for enterprise, agentic and coding tasks.
+Coding
++2
+4M
+1mo
+moonshotai
+Moonshotai
+Downloadable
+Free Endpoint
+kimi-k2.6
+1T multimodal MoE for long-horizon coding, agentic tool use, and image/video understanding.
+Multimodal
++3
+15M
+2mo
+qwen
+Qwen
+Downloadable
+qwen-image
+Qwen-Image is a text-to-image foundation model with advanced multilingual text rendering.
+Text-to-Image
++1
+2mo
+qwen
+Qwen
+Downloadable
+qwen-image-edit
+Qwen-Image-Edit is an image editing model with multilingual text editing and strong subject consistency.
+Text-to-Image
++1
+2mo
+mistralai
+Mistral AI
+Downloadable
+Free Endpoint
+mistral-medium-3.5-128b
+A high performing model for text generation, coding and agentic use cases
+coding
++3
+4M
+2mo
+nvidia
+NVIDIA
+Downloadable
+Free Endpoint
+nemotron-3-nano-omni-30b-a3b-reasoning
+Nemotron 3 Nano Omni is an omni-modal reasoning model that understands images, video, speech, text.
+Image-to-Text
++4
+8M
+2mo
+deepseek-ai
+DeepSeek AI
+Downloadable
+Free Endpoint
+deepseek-v4-flash
+DeepSeek V4 Flash is a 284B MoE model with 1M-token context optimized for fast coding and agents.
+MoE
++3
+15M
+2mo
+deepseek-ai
+DeepSeek AI
+Downloadable
+Free Endpoint
+deepseek-v4-pro
+DeepSeek V4 scales to 1M-token context windows with efficient MoE architecture for coding tasks.
+Moe
++3
+8M
+2mo
+nvidia
+NVIDIA
+Downloadable
+Relighting
+Re-illuminate people in video to match target lighting from a 360 HDRI environment map.
+HDRI
++3
+227
+2mo
+nvidia
+NVIDIA
+Free Endpoint
+nemotron-3-content-safety
+Multilingual, multimodal model for detecting unsafe and toxic content.
+llm safety
++3
+230K
+2mo
+nvidia
+NVIDIA
+Downloadable
+Free Endpoint
+synthetic-video-detector
+NVIDIA Synthetic Video Detector is an AI-powered micro-service for detecting AI‑generated (synthetic) videos.
+broadcast
++4
+90K
+2mo
+nvidia
+NVIDIA
+Downloadable
+Free Endpoint
+Active Speaker Detection
+Detect and track speaker identities across video frames.
+broadcast
++7
+473
+2mo
+nvidia
+NVIDIA
+Downloadable
+LipSync
+Generative lip dubbing that syncs lips in a video to input audio.
+broadcast
++9
+2mo
+nvidia
+NVIDIA
+Downloadable
+Free Endpoint
+ising-calibration-1-35b-a3b
+Open VLM for quantum computer calibration chart understanding across a range of qubit modalities.
+Quantum
++3
+332K
+2mo
+minimaxai
+Minimaxai
+Downloadable
+Free Endpoint
+minimax-m2.7
+MiniMax M2.7 is a 230B-parameter text-to-text AI model excelling in coding, reasoning, and office tasks.
+reasoning
++2
