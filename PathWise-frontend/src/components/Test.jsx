@@ -12,6 +12,7 @@ import {
   AlertCircle
 } from "lucide-react";
 import assessmentQuestions from "../data/assessmentQuestions";
+import { callNimApi } from "../utils/nimApi";
 
 export default function Test() {
   const navigate = useNavigate();
@@ -63,85 +64,42 @@ export default function Test() {
     }
   }, [timeLeft, isSubmitted]);
 
-  // AI Question Generation Function
+  // AI Question Generation Function using NVIDIA NIM API
   const fetchQuestionsForSkill = async (skillName) => {
     setLoadingQuestions(true);
     setQuestionError(null);
 
     try {
       const message = `Generate 20 multiple-choice assessment questions for the skill: "${skillName}".
-
-REQUIREMENTS:
+      
+Requirements:
 1. Create exactly 20 questions that test practical knowledge and understanding
 2. Each question should have exactly 4 options (A, B, C, D)
 3. Questions should range from beginner to intermediate difficulty
 4. Focus on real-world application and best practices
 5. Include both conceptual and practical questions
 
-FORMAT: Return ONLY a valid JSON array with this exact structure:
+Format your response as a valid JSON array of objects, with no other text around it. Each object must have:
+- "id": unique integer (1-20)
+- "question": "Question text"
+- "options": ["Option A", "Option B", "Option C", "Option D"]
+- "correctAnswer": integer (0 to 3 corresponding to index of correct option)
+
+Example:
 [
   {
     "id": 1,
-    "question": "What is the correct way to declare a variable in JavaScript?",
-    "options": [
-      "var myVariable = 'hello';",
-      "variable myVariable = 'hello';", 
-      "declare myVariable = 'hello';",
-      "myVariable := 'hello';"
-    ],
-    "correctAnswer": 0
-  },
-  {
-    "id": 2,
-    "question": "Which method is used to add an element to the end of an array?",
-    "options": [
-      "append()",
-      "push()",
-      "add()",
-      "insert()"
-    ],
+    "question": "What is the correct way to declare a block-scoped variable in modern JavaScript?",
+    "options": ["var x = 10;", "let x = 10;", "define x = 10;", "global x = 10;"],
     "correctAnswer": 1
   }
-]
+]`;
 
-IMPORTANT: 
-- correctAnswer should be the index (0-3) of the correct option
-- Make questions specific to ${skillName}
-- Ensure questions are clear and unambiguous
-- Test different aspects of the skill
-- Return ONLY the JSON array, no additional text`;
-
-      const response = await fetch(`${API_BASE_URL}/chat`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json'
-        },
-        body: JSON.stringify({
-          messages: [{ role: 'user', content: message }]
-        })
+      const botResponse = await callNimApi({
+        messages: [{ role: 'user', content: message }],
+        temperature: 0.1,
+        max_tokens: 4096
       });
-
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-      }
-
-      const data = await response.json();
-      let botResponse = '';
-      
-      if (data.choices && data.choices.length > 0 && data.choices[0].message && data.choices[0].message.content) {
-        botResponse = data.choices[0].message.content;
-      } else if (data.response) {
-        botResponse = data.response;
-      } else if (data.output) {
-        botResponse = data.output;
-      } else if (data.value) {
-        botResponse = data.value;
-      } else if (typeof data === 'string') {
-        botResponse = data;
-      } else {
-        botResponse = 'No response content received from agent';
-      }
 
       const questions = parseQuestionsFromResponse(botResponse);
       
@@ -150,43 +108,12 @@ IMPORTANT:
         setUseAiQuestions(true);
         console.log(`Generated ${questions.length} AI questions for ${skillName}`);
       } else {
-        throw new Error('No valid questions generated');
+        throw new Error('No valid questions generated from AI response');
       }
 
     } catch (error) {
       console.error(`Error fetching questions for ${skillName}:`, error);
-      
-      // Try fallback endpoint
-      try {
-        const message = `Create 20 multiple-choice questions about ${skillName}. Return as JSON array with id, question, options (array of 4), and correctAnswer (index 0-3).`;
-        
-        const fallbackResponse = await fetch(`${API_BASE_URL}/generate`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Accept': 'application/json'
-          },
-          body: JSON.stringify({ input_message: message })
-        });
-
-        if (!fallbackResponse.ok) {
-          throw new Error(`HTTP ${fallbackResponse.status}: ${fallbackResponse.statusText}`);
-        }
-
-        const fallbackData = await fallbackResponse.json();
-        const fallbackResponse_text = fallbackData.value || fallbackData.response || fallbackData.output || '';
-        
-        const questions = parseQuestionsFromResponse(fallbackResponse_text);
-        if (questions.length > 0) {
-          setAiQuestions(questions);
-          setUseAiQuestions(true);
-        } else {
-          throw new Error('Fallback question generation failed');
-        }
-
-      } catch (fallbackError) {
-        setQuestionError(`Failed to generate questions: ${error.message}`);
-      }
+      setQuestionError(`Failed to generate questions: ${error.message}. Please try again.`);
     } finally {
       setLoadingQuestions(false);
     }
@@ -195,50 +122,56 @@ IMPORTANT:
   // Function to parse AI response and extract questions
   const parseQuestionsFromResponse = (aiResponse) => {
     try {
-      // Try to extract JSON array from the response
-      const jsonMatch = aiResponse.match(/\[[\s\S]*\]/);
-      if (jsonMatch) {
-        const parsed = JSON.parse(jsonMatch[0]);
-        if (Array.isArray(parsed)) {
-          // Validate question structure
-          const validQuestions = parsed.filter(q => 
-            q.id !== undefined && 
-            q.question && 
-            Array.isArray(q.options) && 
-            q.options.length === 4 &&
-            typeof q.correctAnswer === 'number' &&
-            q.correctAnswer >= 0 && 
-            q.correctAnswer <= 3
-          );
-          return validQuestions;
-        }
+      // Find JSON block (even if wrapped in ```json ... ```)
+      let cleanedResponse = aiResponse.trim();
+      const jsonStart = cleanedResponse.indexOf('[');
+      const jsonEnd = cleanedResponse.lastIndexOf(']');
+      
+      if (jsonStart !== -1 && jsonEnd !== -1 && jsonEnd > jsonStart) {
+        cleanedResponse = cleanedResponse.substring(jsonStart, jsonEnd + 1);
       }
 
-      // Fallback: Try to parse multiple JSON objects
-      const questionMatches = aiResponse.match(/\{[^}]*"question"[^}]*\}/g);
-      if (questionMatches) {
-        const questions = [];
-        questionMatches.forEach((match, index) => {
-          try {
-            const q = JSON.parse(match);
-            if (q.question && q.options && q.correctAnswer !== undefined) {
-              questions.push({
-                id: index + 1,
-                question: q.question,
-                options: Array.isArray(q.options) ? q.options : [],
-                correctAnswer: parseInt(q.correctAnswer) || 0
-              });
-            }
-          } catch (e) {
-            console.warn('Failed to parse individual question:', match);
-          }
-        });
-        return questions;
+      const parsed = JSON.parse(cleanedResponse);
+      if (Array.isArray(parsed)) {
+        // Validate question structure
+        const validQuestions = parsed.filter(q => 
+          q.id !== undefined && 
+          q.question && 
+          Array.isArray(q.options) && 
+          q.options.length === 4 &&
+          typeof q.correctAnswer === 'number' &&
+          q.correctAnswer >= 0 && 
+          q.correctAnswer <= 3
+        );
+        return validQuestions;
       }
-
       return [];
     } catch (error) {
-      console.error('Error parsing AI response:', error);
+      console.error('Error parsing AI questions response:', error);
+      
+      // Fallback manual parser for individual question objects
+      try {
+        const questionMatches = aiResponse.match(/\{[^}]*"question"[^}]*\}/g);
+        if (questionMatches) {
+          const questions = [];
+          questionMatches.forEach((match, index) => {
+            try {
+              const q = JSON.parse(match);
+              if (q.question && q.options && q.correctAnswer !== undefined) {
+                questions.push({
+                  id: index + 1,
+                  question: q.question,
+                  options: Array.isArray(q.options) ? q.options : [],
+                  correctAnswer: parseInt(q.correctAnswer) || 0
+                });
+              }
+            } catch (e) {}
+          });
+          return questions;
+        }
+      } catch (e) {
+        console.error('Manual parsing fallback failed:', e);
+      }
       return [];
     }
   };

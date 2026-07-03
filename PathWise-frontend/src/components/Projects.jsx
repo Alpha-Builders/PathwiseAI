@@ -2,6 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import roleProjectSets from '../data/roleProjectSets';
 import { ExpandProfile } from "./ExpandProfile";
+import { callNimApi } from "../utils/nimApi";
 import {
   CheckCircle2,
   Lock,
@@ -52,8 +53,13 @@ const enhanceLevels = (data) => {
 };
 
 export default function ProjectStage() {
-  // Get role data
-  const roleId = 'frontend-developer';
+  // Get role data dynamically from search query params or local storage
+  const roleId = useMemo(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const roleParam = urlParams.get("role") || localStorage.getItem("selectedRole") || 'frontend-developer';
+    return roleProjectSets[roleParam] ? roleParam : 'frontend-developer';
+  }, []);
+
   const initialData = useMemo(() => {
     const rawData = roleProjectSets[roleId] || roleProjectSets['frontend-developer'];
     return enhanceLevels(JSON.parse(JSON.stringify(rawData)));
@@ -73,10 +79,7 @@ export default function ProjectStage() {
   const [validationResult, setValidationResult] = useState(null);
   const [validationError, setValidationError] = useState(null);
 
-  // API Configuration (same as Skillsnew.jsx)
-  const API_BASE_URL = 'https://africulture-1.onrender.com/api';
-
-  // AI Code Validation Functions
+  // AI Code Validation Functions using NVIDIA NIM API
   const validateCodeWithAI = async (code, project) => {
     setIsValidatingCode(true);
     setValidationResult(null);
@@ -97,9 +100,7 @@ USER'S CODE SUBMISSION:
 ${code}
 \`\`\`
 
-VALIDATION REQUIREMENTS:
-Please provide a comprehensive code review and validation in JSON format with the following structure:
-
+Format your response as a valid JSON object with the following structure, with no other text around it:
 {
   "isValid": boolean,
   "score": number (0-100),
@@ -129,41 +130,13 @@ IMPORTANT VALIDATION CRITERIA:
 6. Is the code complete and functional?
 7. Are there any security concerns or bugs?
 
-Be thorough but constructive in your feedback. If the code passes basic requirements, mark it as valid even if there are minor improvements to suggest.`;
+Be thorough but constructive in your feedback. If the code passes basic requirements, mark it as valid (passed = true) even if there are minor improvements to suggest.`;
 
-      // Make API call using the same pattern as Skillsnew.jsx
-      const response = await fetch(`${API_BASE_URL}/chat`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json'
-        },
-        body: JSON.stringify({
-          messages: [{ role: 'user', content: validationPrompt }]
-        })
+      const botResponse = await callNimApi({
+        messages: [{ role: 'user', content: validationPrompt }],
+        temperature: 0.1,
+        max_tokens: 3072
       });
-
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-      }
-
-      const data = await response.json();
-      let botResponse = '';
-      
-      // Parse response using the same pattern as Skillsnew.jsx
-      if (data.choices && data.choices.length > 0 && data.choices[0].message && data.choices[0].message.content) {
-        botResponse = data.choices[0].message.content;
-      } else if (data.response) {
-        botResponse = data.response;
-      } else if (data.output) {
-        botResponse = data.output;
-      } else if (data.value) {
-        botResponse = data.value;
-      } else if (typeof data === 'string') {
-        botResponse = data;
-      } else {
-        botResponse = 'No validation response received from AI';
-      }
 
       // Parse the AI validation response
       const validation = parseValidationResponse(botResponse);
@@ -171,33 +144,7 @@ Be thorough but constructive in your feedback. If the code passes basic requirem
 
     } catch (error) {
       console.error('Error validating code with AI:', error);
-      
-      // Try fallback endpoint
-      try {
-        const fallbackPrompt = `Review this code for a ${project.title} project. Code: ${code}. Please provide feedback on correctness and suggestions for improvement.`;
-        
-        const fallbackResponse = await fetch(`${API_BASE_URL}/generate`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Accept': 'application/json'
-          },
-          body: JSON.stringify({ input_message: fallbackPrompt })
-        });
-
-        if (!fallbackResponse.ok) {
-          throw new Error(`HTTP ${fallbackResponse.status}: ${fallbackResponse.statusText}`);
-        }
-
-        const fallbackData = await fallbackResponse.json();
-        const fallbackText = fallbackData.value || fallbackData.response || fallbackData.output || 'Validation service unavailable';
-        
-        const validation = parseValidationResponse(fallbackText);
-        setValidationResult(validation);
-
-      } catch (fallbackError) {
-        setValidationError(`Code validation failed: ${error.message}`);
-      }
+      setValidationError(`Code validation failed: ${error.message}`);
     } finally {
       setIsValidatingCode(false);
     }
@@ -206,14 +153,20 @@ Be thorough but constructive in your feedback. If the code passes basic requirem
   // Parse AI validation response
   const parseValidationResponse = (aiResponse) => {
     try {
-      // Try to extract JSON from the response
-      const jsonMatch = aiResponse.match(/\{[\s\S]*\}/);
-      if (jsonMatch) {
-        const parsed = JSON.parse(jsonMatch[0]);
+      let cleaned = aiResponse.trim();
+      const jsonStart = cleaned.indexOf('{');
+      const jsonEnd = cleaned.lastIndexOf('}');
+      if (jsonStart !== -1 && jsonEnd !== -1) {
+        cleaned = cleaned.substring(jsonStart, jsonEnd + 1);
+      }
+      
+      const parsed = JSON.parse(cleaned);
+      if (parsed.feedback && parsed.technicalAnalysis) {
         return parsed;
       }
-
-      // Fallback: Create basic validation from text response
+      throw new Error("Missing required JSON fields");
+    } catch (error) {
+      console.error('Error parsing validation response:', error);
       const isPositive = /good|correct|valid|well|excellent|great|pass/i.test(aiResponse);
       const hasErrors = /error|wrong|incorrect|fail|issue|problem/i.test(aiResponse);
 
@@ -235,27 +188,6 @@ Be thorough but constructive in your feedback. If the code passes basic requirem
         },
         passed: isPositive && !hasErrors,
         nextSteps: isPositive ? 'Great work! Continue to the next project.' : 'Please review the feedback and try again.'
-      };
-    } catch (error) {
-      console.error('Error parsing validation response:', error);
-      return {
-        isValid: false,
-        score: 0,
-        feedback: {
-          overall: 'Unable to validate code properly. Please check your code and try again.',
-          strengths: [],
-          improvements: ['Code validation encountered an error'],
-          errors: ['Validation service error'],
-          suggestions: ['Please try submitting again or check your code syntax']
-        },
-        technicalAnalysis: {
-          correctness: 'Unable to assess',
-          bestPractices: 'Unable to assess',
-          completeness: 'Unable to assess',
-          codeQuality: 'Unable to assess'
-        },
-        passed: false,
-        nextSteps: 'Please try validating your code again.'
       };
     }
   };
