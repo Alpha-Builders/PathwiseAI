@@ -1,0 +1,125 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  USER
+  ADMIN
+}
+
+enum VerificationType {
+  EMAIL_VERIFICATION
+  PASSWORD_RESET
+}
+
+model User {
+  id        String   @id @default(cuid())
+  firstName String
+  lastName  String
+  email     String   @unique
+  password  String
+  isVerified Boolean @default(false)
+  role UserRole @default(USER)
+  avatar String?
+  lastLoginAt   DateTime?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  verificationCodes VerificationCode[]
+  refreshTokens     RefreshToken[]
+  lessonProgress    LessonProgress[]
+}
+
+model VerificationCode {
+  id         String @id @default(cuid())
+  code       String
+  type       VerificationType
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+  userId String
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model RefreshToken {
+  id String @id @default(cuid())
+  hashedToken String
+  expiresAt DateTime
+  revoked Boolean @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  userId String
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Career {
+
+  id String @id @default(cuid())
+
+  title String
+
+  description String
+
+  imageUrl String?
+
+  createdAt DateTime @default(now())
+
+  updatedAt DateTime @updatedAt
+
+  roadmaps Roadmap[]
+}
+
+model Roadmap {
+  id String @id @default(cuid())
+  title String
+  description String
+  order Int
+  careerId String
+  career Career @relation(fields: [careerId], references: [id], onDelete: Cascade)
+  courses Course[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Course {
+
+  id String @id @default(cuid())
+  title String
+  description String
+  thumbnail String?
+  roadmapId String
+  roadmap Roadmap @relation(fields: [roadmapId], references: [id], onDelete: Cascade)
+  lessons Lesson[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Lesson {
+ id String @id @default(cuid())
+ title String
+ description String
+ videoUrl String
+ duration Int
+ order Int
+ courseId String
+ course Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
+ progress LessonProgress[]
+ createdAt DateTime @default(now())
+ updatedAt DateTime @updatedAt
+}
+
+model LessonProgress {
+  id String @id @default(cuid())
+  currentSecond Int @default(0)
+  percentage Float @default(0)
+  completed Boolean @default(false)
+  lastWatched DateTime @default(now())
+  lessonId String
+  lesson Lesson @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+  userId String
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@unique([lessonId,userId])
+}
