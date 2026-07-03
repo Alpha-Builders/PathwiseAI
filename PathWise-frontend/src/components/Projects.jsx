@@ -11,8 +11,8 @@ import {
   Code,
   Zap,
   Brain,
-  Badge,
   ArrowRight,
+  ArrowLeft,
   Clock,
   Trophy,
   X,
@@ -52,6 +52,781 @@ const enhanceLevels = (data) => {
   return data;
 };
 
+/* -------------------------------------------------------------------------
+ * CodeEditor
+ * A small, self-contained code editor: line-number gutter synced to scroll,
+ * monospace body, and Tab inserts indentation instead of moving focus away
+ * (the classic LeetCode/VS Code behavior). It is a top-level component so
+ * it never gets torn down and recreated by a parent re-render — that
+ * identity churn was what caused the cursor-jump bug.
+ * ---------------------------------------------------------------------- */
+function CodeEditor({ value, onChange, editorRef, placeholder }) {
+  const gutterRef = useRef(null);
+  const normalizeValue = (text) => text.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+  const normalizedValue = normalizeValue(value);
+  const lines = normalizedValue.length ? normalizedValue.split('\n') : [''];
+
+  const syncGutterScroll = () => {
+    if (gutterRef.current && editorRef.current) {
+      gutterRef.current.scrollTop = editorRef.current.scrollTop;
+    }
+  };
+
+  const handleChange = (e) => {
+    onChange(normalizeValue(e.target.value));
+  };
+
+  const handlePaste = (e) => {
+    e.preventDefault();
+    const pasted = e.clipboardData.getData('text/plain');
+    const normalized = normalizeValue(pasted);
+    const textarea = e.target;
+    const { selectionStart, selectionEnd } = textarea;
+    const nextValue = `${value.slice(0, selectionStart)}${normalized}${value.slice(selectionEnd)}`;
+    onChange(nextValue);
+
+    requestAnimationFrame(() => {
+      const caret = selectionStart + normalized.length;
+      textarea.selectionStart = textarea.selectionEnd = caret;
+    });
+  };
+
+  const handleKeyDown = (e) => {
+    if (e.key !== 'Tab') return;
+    e.preventDefault();
+    const textarea = e.target;
+    const { selectionStart, selectionEnd } = textarea;
+    const nextValue = `${value.slice(0, selectionStart)}  ${value.slice(selectionEnd)}`;
+    onChange(nextValue);
+    requestAnimationFrame(() => {
+      textarea.selectionStart = textarea.selectionEnd = selectionStart + 2;
+    });
+  };
+
+  return (
+    <div className="flex bg-paper rounded-2xl border border-card-line overflow-hidden">
+      <div
+        ref={gutterRef}
+        aria-hidden="true"
+        className="select-none text-right px-3 py-4 text-[13px] leading-6 font-mono text-ink-faint bg-paper-soft border-r border-card-line overflow-hidden"
+        style={{ minWidth: '3rem' }}
+      >
+        {lines.map((_, i) => (
+          <div key={i}>{i + 1}</div>
+        ))}
+      </div>
+      <textarea
+        ref={editorRef}
+        value={normalizedValue}
+        onChange={handleChange}
+        onPaste={handlePaste}
+        onScroll={syncGutterScroll}
+        onKeyDown={handleKeyDown}
+        spellCheck={false}
+        autoCapitalize="off"
+        autoCorrect="off"
+        wrap="off"
+        placeholder={placeholder}
+        className="flex-1 h-96 bg-paper text-ink placeholder-ink-faint font-mono text-[13px] leading-6 p-4 outline-none resize-none overflow-x-auto"
+        style={{ fontFamily: 'Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace' }}
+      />
+    </div>
+  );
+}
+
+/* -------------------------------------------------------------------------
+ * ProjectModalView
+ * ---------------------------------------------------------------------- */
+function ProjectModalView({ project, onClose, onStart }) {
+  return (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50"
+      onClick={onClose}
+    >
+      <motion.div
+        initial={{ scale: 0.9, opacity: 0 }}
+        animate={{ scale: 1, opacity: 1 }}
+        exit={{ scale: 0.9, opacity: 0 }}
+        className="bg-white rounded-2xl max-w-2xl w-full max-h-[80vh] overflow-y-auto"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="p-6">
+          <div className="flex justify-between items-start mb-6">
+            <div>
+              <h2 className="text-2xl font-bold text-gray-900 mb-2">{project?.title}</h2>
+              <div className="flex items-center gap-3 text-sm text-gray-600">
+                <span className="text-xs font-medium bg-paper-soft border border-card-line text-ink-soft px-2.5 py-1 rounded-full">
+                  {project?.difficulty}
+                </span>
+                <div className="flex items-center gap-1">
+                  <Clock className="w-4 h-4" />
+                  {project?.duration}
+                </div>
+              </div>
+            </div>
+            <button
+              onClick={onClose}
+              className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
+
+          <div className="space-y-6">
+            <div>
+              <h3 className="font-semibold text-gray-900 mb-2">Project Description</h3>
+              <p className="text-gray-600 leading-relaxed">{project?.description}</p>
+            </div>
+
+            <div>
+              <h3 className="font-semibold text-gray-900 mb-3">Learning Objectives</h3>
+              <div className="space-y-2">
+                {project?.objectives?.map((objective, index) => (
+                  <div key={index} className="flex items-center gap-2">
+                    <Target className="w-4 h-4 text-green-500" />
+                    <span className="text-sm text-gray-600">{objective}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div>
+              <h3 className="font-semibold text-gray-900 mb-3">Technologies Used</h3>
+              <div className="flex flex-wrap gap-2">
+                {project?.technologies?.map((tech, index) => (
+                  <span
+                    key={index}
+                    className="text-xs font-medium bg-sage-bg text-sage-ink px-2.5 py-1 rounded-full"
+                  >
+                    {tech}
+                  </span>
+                ))}
+              </div>
+            </div>
+
+            {project?.hasVisual && (
+              <div>
+                <h3 className="font-semibold text-gray-900 mb-3">Expected Output</h3>
+                <div className="bg-gray-100 rounded-lg p-8 flex items-center justify-center">
+                  <div className="text-center text-gray-500">
+                    <Monitor className="w-12 h-12 mx-auto mb-2" />
+                    <p className="text-sm">Project preview will be shown here</p>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            <div className="flex gap-3 pt-4">
+              <button
+                onClick={onClose}
+                className="flex-1 px-4 py-3 border border-gray-200 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={onStart}
+                className="flex-1 px-4 py-3 bg-forest text-paper rounded-lg hover:bg-forest-dark hover:scale-105 cursor-pointer transition-all flex items-center justify-center gap-2"
+              >
+                <Play className="w-4 h-4" />
+                Start Project
+              </button>
+            </div>
+          </div>
+        </div>
+      </motion.div>
+    </motion.div>
+  );
+}
+
+/* -------------------------------------------------------------------------
+ * WorkspaceView
+ * ---------------------------------------------------------------------- */
+function WorkspaceView({
+  project,
+  userCode,
+  setUserCode,
+  isValidatingCode,
+  validationResult,
+  validationError,
+  onTestCode,
+  onSubmitCode,
+  onResetValidation,
+  onBack,
+  editorRef,
+}) {
+  return (
+    <div className="min-h-screen bg-paper">
+      {/* Header */}
+      <div className="bg-paper-soft border-b border-card-line">
+        <div className="container mx-auto px-4 py-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <button
+                onClick={onBack}
+                className="p-2 text-ink-faint hover:text-forest hover:bg-paper rounded-lg transition-colors"
+              >
+                <ArrowLeft className="w-5 h-5" />
+              </button>
+              <div>
+                <h1 className="text-xl font-bold text-ink">{project?.title}</h1>
+                <div className="flex items-center gap-4 text-sm text-ink-faint">
+                  <div className="flex items-center gap-1">
+                    <Clock className="w-4 h-4" />
+                    <span>{project?.duration}</span>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <Target className="w-4 h-4" />
+                    <span>{project?.difficulty || 'Beginner'}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div className="flex items-center gap-3">
+              {validationResult && validationResult.passed && (
+                <button
+                  onClick={onSubmitCode}
+                  className="px-6 py-3 bg-forest text-paper font-medium rounded-lg hover:bg-forest-dark transition-colors flex items-center gap-2"
+                >
+                  <CheckCircle2 className="w-4 h-4" />
+                  Submit Project
+                </button>
+              )}
+              <button
+                onClick={onResetValidation}
+                className="px-6 py-3 bg-paper text-ink-soft border border-card-line font-medium rounded-lg hover:bg-white transition-colors"
+              >
+                Reset
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Project Workspace Content */}
+      <div className="container mx-auto px-4 py-8">
+        <div className="max-w-6xl mx-auto">
+          <div className="grid lg:grid-cols-2 gap-8">
+            {/* Instructions */}
+            <div className="bg-card rounded-3xl p-6 border border-card-line h-fit">
+              <h2 className="text-xl font-bold text-ink mb-4">Project Instructions</h2>
+              <div className="space-y-4">
+                <div className="rounded-lg p-4 bg-paper-soft border border-card-line">
+                  <h3 className="font-semibold text-ink mb-2">Description</h3>
+                  <p className="text-ink-soft text-sm">{project.description}</p>
+                </div>
+
+                <div className="rounded-lg p-4 bg-paper-soft border border-card-line">
+                  <h3 className="font-semibold text-ink mb-2">Learning Objectives</h3>
+                  <div className="space-y-2">
+                    {project.objectives?.map((obj, index) => (
+                      <div key={index} className="flex items-center gap-2 text-sm text-ink-soft">
+                        <Target className="w-4 h-4 text-sage-ink shrink-0" />
+                        {obj}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="rounded-lg p-4 bg-paper-soft border border-card-line">
+                  <h3 className="font-semibold text-ink mb-2">Technologies</h3>
+                  <div className="flex flex-wrap gap-2">
+                    {project.technologies?.map((tech, index) => (
+                      <span
+                        key={index}
+                        className="px-2.5 py-1 bg-sage-bg text-sage-ink text-xs font-medium rounded-md"
+                      >
+                        {tech}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Code Editor Area */}
+            <div className="bg-card rounded-3xl border border-card-line overflow-hidden">
+              <div className="bg-paper-soft px-4 py-3 border-b border-card-line flex items-center justify-between gap-4">
+                <div className="flex items-center gap-2">
+                  <span className="h-2.5 w-2.5 rounded-full bg-[#f87171] shadow-sm" />
+                  <span className="h-2.5 w-2.5 rounded-full bg-[#fbbf24] shadow-sm" />
+                  <span className="h-2.5 w-2.5 rounded-full bg-[#34d399] shadow-sm" />
+                  <span className="ml-4 text-sm font-medium text-ink">solution.html</span>
+                </div>
+                <span className="text-xs uppercase tracking-[0.2em] text-ink-soft">Code Workspace</span>
+              </div>
+
+              <div className="p-4">
+                <CodeEditor
+                  value={userCode}
+                  onChange={setUserCode}
+                  editorRef={editorRef}
+                  placeholder="Write your code here... (Tab indents, just like your usual editor)"
+                />
+              </div>
+
+              <div className="px-4 py-3 bg-paper-soft border-t border-card-line">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                  <span className="text-sm text-ink-soft">
+                    {isValidatingCode
+                      ? 'AI is validating your code...'
+                      : 'Write your code and click Test Code to get AI feedback.'}
+                  </span>
+                  <button
+                    onClick={onTestCode}
+                    disabled={isValidatingCode || !userCode.trim()}
+                    className="inline-flex items-center justify-center gap-2 px-4 py-2 bg-forest text-paper text-sm rounded-full hover:bg-forest-dark transition-colors disabled:bg-card-line disabled:text-ink-faint disabled:cursor-not-allowed"
+                  >
+                    {isValidatingCode ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        Validating...
+                      </>
+                    ) : (
+                      <>
+                        <CheckCircle className="w-4 h-4" />
+                        Test Code
+                      </>
+                    )}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* AI Validation Results */}
+          {(validationResult || validationError) && (
+            <div className="mt-8">
+              <div className="bg-card rounded-3xl p-6 border border-card-line">
+                <h3 className="text-lg font-bold text-ink mb-4 flex items-center gap-2">
+                  🤖 AI Code Validation Results
+                  {validationResult?.passed && <CheckCircle className="w-5 h-5 text-emerald-600" />}
+                  {validationResult && !validationResult.passed && <XCircle className="w-5 h-5 text-red-600" />}
+                </h3>
+
+                {validationError ? (
+                  <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+                    <div className="flex items-center gap-2 text-red-700 mb-2">
+                      <AlertCircle className="w-4 h-4" />
+                      <span className="font-semibold">Validation Error</span>
+                    </div>
+                    <p className="text-red-700 text-sm">{validationError}</p>
+                  </div>
+                ) : validationResult ? (
+                  <div className="space-y-4">
+                    {/* Score and Overall Status */}
+                    <div
+                      className={`p-4 rounded-lg border ${
+                        validationResult.passed
+                          ? 'bg-emerald-50 border-emerald-200'
+                          : 'bg-amber-50 border-amber-200'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between mb-2">
+                        <span
+                          className={`font-semibold ${
+                            validationResult.passed ? 'text-emerald-700' : 'text-amber-700'
+                          }`}
+                        >
+                          {validationResult.passed ? '✅ Code Validation Passed!' : '⚠️ Code Needs Improvement'}
+                        </span>
+                        <span className="text-ink font-bold text-lg">
+                          Score: {validationResult.score}/100
+                        </span>
+                      </div>
+                      <p
+                        className={`text-sm ${
+                          validationResult.passed ? 'text-emerald-700' : 'text-amber-700'
+                        }`}
+                      >
+                        {validationResult.feedback.overall}
+                      </p>
+                    </div>
+
+                    {/* Detailed Feedback */}
+                    <div className="grid md:grid-cols-2 gap-4">
+                      {/* Strengths */}
+                      {validationResult.feedback.strengths.length > 0 && (
+                        <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-4">
+                          <h4 className="font-semibold text-emerald-700 mb-2 flex items-center gap-2">
+                            <CheckCircle className="w-4 h-4" />
+                            Strengths
+                          </h4>
+                          <ul className="space-y-1">
+                            {validationResult.feedback.strengths.map((strength, index) => (
+                              <li key={index} className="text-emerald-700 text-sm">• {strength}</li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+
+                      {/* Improvements */}
+                      {validationResult.feedback.improvements.length > 0 && (
+                        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                          <h4 className="font-semibold text-blue-700 mb-2 flex items-center gap-2">
+                            <Target className="w-4 h-4" />
+                            Areas for Improvement
+                          </h4>
+                          <ul className="space-y-1">
+                            {validationResult.feedback.improvements.map((improvement, index) => (
+                              <li key={index} className="text-blue-700 text-sm">• {improvement}</li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+
+                      {/* Errors */}
+                      {validationResult.feedback.errors.length > 0 && (
+                        <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+                          <h4 className="font-semibold text-red-700 mb-2 flex items-center gap-2">
+                            <XCircle className="w-4 h-4" />
+                            Critical Issues
+                          </h4>
+                          <ul className="space-y-1">
+                            {validationResult.feedback.errors.map((error, index) => (
+                              <li key={index} className="text-red-700 text-sm">• {error}</li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+
+                      {/* Suggestions */}
+                      {validationResult.feedback.suggestions.length > 0 && (
+                        <div className="bg-purple-50 border border-purple-200 rounded-lg p-4">
+                          <h4 className="font-semibold text-purple-700 mb-2 flex items-center gap-2">
+                            <Star className="w-4 h-4" />
+                            Suggestions
+                          </h4>
+                          <ul className="space-y-1">
+                            {validationResult.feedback.suggestions.map((suggestion, index) => (
+                              <li key={index} className="text-purple-700 text-sm">• {suggestion}</li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Next Steps */}
+                    <div className="bg-paper-soft rounded-lg p-4 border border-card-line">
+                      <h4 className="font-semibold text-ink mb-2">Next Steps</h4>
+                      <p className="text-ink-soft text-sm">{validationResult.nextSteps}</p>
+                    </div>
+                  </div>
+                ) : null}
+              </div>
+            </div>
+          )}
+
+          {/* Project Preview */}
+          {project.hasVisual && (
+            <div className="mt-8">
+              <div className="bg-card rounded-3xl p-6 border border-card-line">
+                <h3 className="text-lg font-bold text-ink mb-4 flex items-center gap-2">
+                  <Monitor className="w-5 h-5" />
+                  Project Preview
+                </h3>
+                <div className="bg-paper-soft rounded-lg p-8 border border-dashed border-card-line">
+                  <div className="text-center text-ink-faint">
+                    <ImageIcon className="w-12 h-12 mx-auto mb-2" />
+                    <p className="text-sm">Your project output will appear here when you run the code</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* -------------------------------------------------------------------------
+ * ProjectsView
+ * ---------------------------------------------------------------------- */
+function ProjectsView({
+  projectData,
+  currentLevel,
+  setCurrentLevel,
+  levelKeys,
+  getLevelProgress,
+  canAccessLevel,
+  isCurrentLevelComplete,
+  getNextLevel,
+  overallCompleted,
+  overallTotal,
+  overallPercentage,
+  onProjectClick,
+}) {
+  const currentLevelData = projectData[currentLevel];
+  const progress = getLevelProgress(currentLevel);
+  const nextLevel = getNextLevel();
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-paper to-paper-soft p-4">
+      <div className="container mx-auto max-w-7xl">
+        {/* Header with role info and overall progress */}
+        <div className="mb-8">
+          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
+            <div>
+              <h1 className="text-3xl font-bold text-gray-900 mb-2">
+                Frontend Developer Projects
+              </h1>
+              <p className="text-gray-600">
+                Build real-world projects to master frontend development
+              </p>
+            </div>
+
+            <div className="flex items-center gap-6">
+              <div className="text-right">
+                <p className="text-sm text-gray-600">Overall Progress</p>
+                <div className="flex items-center gap-2">
+                  <div className="w-32 bg-gray-200 rounded-full h-2">
+                    <div
+                      className="bg-gradient-to-r from-green-500 to-blue-500 h-2 rounded-full transition-all duration-300"
+                      style={{ width: `${overallPercentage}%` }}
+                    />
+                  </div>
+                  <span className="text-sm font-semibold text-gray-700">
+                    {overallCompleted}/{overallTotal}
+                  </span>
+                </div>
+              </div>
+
+              <div className="text-center">
+                <Trophy className="w-8 h-8 mx-auto text-yellow-500 mb-1" />
+                <p className="text-xs text-gray-600">
+                  {Math.round(overallPercentage)}% Complete
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Level Navigation */}
+        <div className="mb-8">
+          <div className="flex flex-wrap gap-2 p-2 bg-white/80 backdrop-blur-sm rounded-2xl border border-card-line shadow-lg">
+            {levelKeys.map((levelKey) => {
+              const levelData = projectData[levelKey];
+              const levelProgress = getLevelProgress(levelKey);
+              const canAccess = canAccessLevel(levelKey);
+              const IconComponent = levelData.icon;
+
+              return (
+                <button
+                  key={levelKey}
+                  onClick={() => canAccess && setCurrentLevel(levelKey)}
+                  disabled={!canAccess}
+                  className={`
+                    flex-1 min-w-[200px] p-4 rounded-xl font-medium transition-all duration-200
+                    ${currentLevel === levelKey
+                      ? `${levelData.bgColor} ${levelData.textColor} ${levelData.borderColor} border-2 shadow-md`
+                      : canAccess
+                      ? 'bg-white text-gray-600 hover:bg-gray-50 border border-gray-200'
+                      : 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                    }
+                  `}
+                >
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center gap-2">
+                      {canAccess ? (
+                        <IconComponent className="w-5 h-5" />
+                      ) : (
+                        <Lock className="w-5 h-5" />
+                      )}
+                      <span className="capitalize font-semibold">{levelKey}</span>
+                    </div>
+                    {levelProgress.percentage === 100 && (
+                      <CheckCircle2 className="w-5 h-5 text-green-500" />
+                    )}
+                  </div>
+
+                  <div className="space-y-1">
+                    <div className="flex justify-between text-sm">
+                      <span>{levelProgress.completed}/{levelProgress.total} completed</span>
+                      <span>{Math.round(levelProgress.percentage)}%</span>
+                    </div>
+                    <div className="w-full bg-gray-200 rounded-full h-1.5">
+                      <div
+                        className={`bg-gradient-to-r ${levelData.color} h-1.5 rounded-full transition-all duration-300`}
+                        style={{ width: `${levelProgress.percentage}%` }}
+                      />
+                    </div>
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Current Level Content */}
+        <div className="grid gap-8">
+          {/* Level Header */}
+          <div className={`${currentLevelData.bgColor} rounded-3xl p-8 border-2 ${currentLevelData.borderColor}`}>
+            <div className="flex items-center justify-between mb-6">
+              <div className="flex items-center gap-4">
+                <div className={`p-4 bg-gradient-to-r ${currentLevelData.color} rounded-2xl text-white`}>
+                  <currentLevelData.icon className="w-8 h-8" />
+                </div>
+                <div>
+                  <h2 className={`text-3xl font-bold ${currentLevelData.textColor} capitalize`}>
+                    {currentLevel} Level
+                  </h2>
+                  <p className={`${currentLevelData.textColor}/80`}>
+                    {currentLevelData.description}
+                  </p>
+                </div>
+              </div>
+
+              <div className="text-right">
+                <div className={`text-2xl font-bold ${currentLevelData.textColor}`}>
+                  {progress.completed}/{progress.total}
+                </div>
+                <p className={`text-sm ${currentLevelData.textColor}/70`}>
+                  Projects Completed
+                </p>
+              </div>
+            </div>
+
+            {/* Progress Bar */}
+            <div className="space-y-2">
+              <div className="flex justify-between text-sm">
+                <span className={currentLevelData.textColor}>Progress</span>
+                <span className={currentLevelData.textColor}>
+                  {Math.round(progress.percentage)}%
+                </span>
+              </div>
+              <div className="w-full bg-white/60 rounded-full h-3">
+                <div
+                  className={`bg-gradient-to-r ${currentLevelData.color} h-3 rounded-full transition-all duration-500`}
+                  style={{ width: `${progress.percentage}%` }}
+                />
+              </div>
+            </div>
+
+            {/* Level Completion Message */}
+            {isCurrentLevelComplete() && nextLevel && (
+              <div className="mt-6 p-4 bg-white/70 rounded-xl">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <Award className="w-6 h-6 text-yellow-600" />
+                    <div>
+                      <p className="font-semibold text-gray-900">
+                        Congratulations! Level Complete
+                      </p>
+                      <p className="text-sm text-gray-600">
+                        You can now unlock the {nextLevel} level
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => setCurrentLevel(nextLevel)}
+                    className="px-4 py-2 bg-gradient-to-r from-green-500 to-blue-500 text-white rounded-lg hover:scale-105 transition-all flex items-center gap-2"
+                  >
+                    Unlock {nextLevel}
+                    <ChevronRight className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Projects Grid */}
+          <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-6">
+            {currentLevelData.projects.map((project) => (
+              <motion.div
+                key={project.id}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.3 }}
+                className="bg-white rounded-2xl p-6 border border-gray-200 hover:border-blue-300 hover:shadow-lg transition-all duration-300 cursor-pointer group"
+                onClick={() => onProjectClick(project)}
+              >
+                <div className="flex items-start justify-between mb-4">
+                  <div className="flex-1">
+                    <h3 className="font-bold text-gray-900 text-lg mb-2 group-hover:text-blue-600 transition-colors">
+                      {project.title}
+                    </h3>
+                    <p className="text-gray-600 text-sm line-clamp-2">
+                      {project.description}
+                    </p>
+                  </div>
+                  <div className="ml-4 flex-shrink-0">
+                    {project.completed ? (
+                      <div className="w-8 h-8 bg-green-500 rounded-full flex items-center justify-center">
+                        <CheckCircle2 className="w-5 h-5 text-white" />
+                      </div>
+                    ) : (
+                      <div className="w-8 h-8 border-2 border-gray-300 rounded-full group-hover:border-blue-400 transition-colors" />
+                    )}
+                  </div>
+                </div>
+
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between text-sm">
+                    <div className="flex items-center gap-2 text-gray-500">
+                      <Clock className="w-4 h-4" />
+                      {project.duration}
+                    </div>
+                    <div className="flex items-center gap-2 text-gray-500">
+                      <Users className="w-4 h-4" />
+                      {project.difficulty}
+                    </div>
+                  </div>
+
+                  <div className="flex flex-wrap gap-1">
+                    {project.technologies?.slice(0, 3).map((tech, index) => (
+                      <span
+                        key={index}
+                        className="px-2 py-1 bg-blue-100 text-blue-700 text-xs rounded-md"
+                      >
+                        {tech}
+                      </span>
+                    ))}
+                    {project.technologies?.length > 3 && (
+                      <span className="px-2 py-1 bg-gray-100 text-gray-600 text-xs rounded-md">
+                        +{project.technologies.length - 3} more
+                      </span>
+                    )}
+                  </div>
+
+                  <div className="pt-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-medium text-gray-700">
+                        {project.completed ? 'Completed' : 'Start Project'}
+                      </span>
+                      <ArrowRight className="w-4 h-4 text-gray-400 group-hover:text-blue-500 group-hover:translate-x-1 transition-all" />
+                    </div>
+                  </div>
+                </div>
+              </motion.div>
+            ))}
+          </div>
+
+          {/* No Projects Message */}
+          {currentLevelData.projects.length === 0 && (
+            <div className="text-center py-12">
+              <Briefcase className="w-16 h-16 mx-auto text-gray-400 mb-4" />
+              <h3 className="text-xl font-semibold text-gray-600 mb-2">
+                No projects available
+              </h3>
+              <p className="text-gray-500">
+                Projects for this level are coming soon!
+              </p>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* -------------------------------------------------------------------------
+ * ProjectStage (default export)
+ * Owns state + handlers only. All views below are stable, top-level
+ * components so React never remounts them mid-interaction.
+ * ---------------------------------------------------------------------- */
 export default function ProjectStage() {
   // Get role data dynamically from search query params or local storage
   const roleId = useMemo(() => {
@@ -72,13 +847,14 @@ export default function ProjectStage() {
   const [selectedProject, setSelectedProject] = useState(null);
   const [selectedProjectForWork, setSelectedProjectForWork] = useState(null);
   const [showProjectModal, setShowProjectModal] = useState(false);
-  
+
   // AI Code Validation States
   const [userCode, setUserCode] = useState('');
   const [isValidatingCode, setIsValidatingCode] = useState(false);
   const [validationResult, setValidationResult] = useState(null);
   const [validationError, setValidationError] = useState(null);
   const editorRef = useRef(null);
+
   useEffect(() => {
     if (currentView === 'workspace') {
       setTimeout(() => editorRef.current?.focus(), 0);
@@ -167,7 +943,7 @@ Be thorough but constructive in your feedback. If the code passes basic requirem
       if (jsonStart !== -1 && jsonEnd !== -1) {
         cleaned = cleaned.substring(jsonStart, jsonEnd + 1);
       }
-      
+
       const parsed = JSON.parse(cleaned);
       if (parsed.feedback && parsed.technicalAnalysis) {
         return parsed;
@@ -218,7 +994,7 @@ Be thorough but constructive in your feedback. If the code passes basic requirem
     }
   };
 
-  // Utility functions (keeping existing ones)
+  // Utility functions
   const toggleProjectCompletion = (levelKey, projectId) => {
     setProjectData(prev => {
       const updatedLevel = { ...prev[levelKey] };
@@ -302,664 +1078,50 @@ Be thorough but constructive in your feedback. If the code passes basic requirem
     setValidationError(null);
   };
 
-  // Component definitions
-  const ProjectModal = () => (
-    <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
-      className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50"
-      onClick={() => setShowProjectModal(false)}
-    >
-      <motion.div
-        initial={{ scale: 0.9, opacity: 0 }}
-        animate={{ scale: 1, opacity: 1 }}
-        exit={{ scale: 0.9, opacity: 0 }}
-        className="bg-white rounded-2xl max-w-2xl w-full max-h-[80vh] overflow-y-auto"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="p-6">
-          <div className="flex justify-between items-start mb-6">
-            <div>
-              <h2 className="text-2xl font-bold text-gray-900 mb-2">{selectedProject?.title}</h2>
-              <div className="flex items-center gap-3 text-sm text-gray-600">
-                <Badge variant="outline" className="text-xs">
-                  {selectedProject?.difficulty}
-                </Badge>
-                <div className="flex items-center gap-1">
-                  <Clock className="w-4 h-4" />
-                  {selectedProject?.duration}
-                </div>
-              </div>
-            </div>
-            <button
-              onClick={() => setShowProjectModal(false)}
-              className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
-            >
-              <X className="w-5 h-5" />
-            </button>
-          </div>
-
-          <div className="space-y-6">
-            <div>
-              <h3 className="font-semibold text-gray-900 mb-2">Project Description</h3>
-              <p className="text-gray-600 leading-relaxed">{selectedProject?.description}</p>
-            </div>
-
-            <div>
-              <h3 className="font-semibold text-gray-900 mb-3">Learning Objectives</h3>
-              <div className="space-y-2">
-                {selectedProject?.objectives?.map((objective, index) => (
-                  <div key={index} className="flex items-center gap-2">
-                    <Target className="w-4 h-4 text-green-500" />
-                    <span className="text-sm text-gray-600">{objective}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            <div>
-              <h3 className="font-semibold text-gray-900 mb-3">Technologies Used</h3>
-              <div className="flex flex-wrap gap-2">
-                {selectedProject?.technologies?.map((tech, index) => (
-                  <Badge key={index} variant="secondary" className="text-xs">
-                    {tech}
-                  </Badge>
-                ))}
-              </div>
-            </div>
-
-            {selectedProject?.hasVisual && (
-              <div>
-                <h3 className="font-semibold text-gray-900 mb-3">Expected Output</h3>
-                <div className="bg-gray-100 rounded-lg p-8 flex items-center justify-center">
-                  <div className="text-center text-gray-500">
-                    <Monitor className="w-12 h-12 mx-auto mb-2" />
-                    <p className="text-sm">Project preview will be shown here</p>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            <div className="flex gap-3 pt-4">
-              <button
-                onMouseDown={(e) => e.preventDefault()}
-                onClick={() => setShowProjectModal(false)}
-                className="flex-1 px-4 py-3 border border-gray-200 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
-              >
-                Cancel
-              </button>
-              <button
-                onMouseDown={(e) => e.preventDefault()}
-                onClick={handleStartProject}
-                className="flex-1 px-4 py-3 bg-green-500 text-ink rounded-lg hover:scale-105 cursor-pointer transition-all flex items-center justify-center gap-2"
-              >
-                <Play className="w-4 h-4" />
-                Start Project
-              </button>
-            </div>
-          </div>
-        </div>
-      </motion.div>
-    </motion.div>
-  );
-
-  const WorkspaceView = () => (
-    <div className="min-h-screen bg-paper">
-      {/* Header */}
-      <div className="bg-paper-soft border-b border-gray-700">
-        <div className="container mx-auto px-4 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <button onClick={handleBackToProjects}
-                className="p-2 text-gray-400 hover:text-ink hover:bg-gray-700 rounded-lg transition-colors"
-              >
-                <ArrowRight className="w-5 h-5 rotate-180" />
-              </button>
-              <div>
-                <h1 className="text-xl font-bold text-ink">{selectedProjectForWork?.title}</h1>
-                <div className="flex items-center gap-4 text-sm text-gray-400">
-                  <div className="flex items-center gap-1">
-                    <Clock className="w-4 h-4" />
-                    <span>{selectedProjectForWork?.duration}</span>
-                  </div>
-                  <div className="flex items-center gap-1">
-                    <Target className="w-4 h-4" />
-                    <span>{selectedProjectForWork?.difficulty || 'Beginner'}</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-            <div className="flex items-center gap-3">
-              {validationResult && validationResult.passed && (
-                <button
-                  onMouseDown={(e) => e.preventDefault()}
-                  onClick={handleSubmitCode}
-                  className="px-6 py-3 bg-green-600 text-ink font-medium rounded-lg hover:bg-green-700 transition-colors flex items-center gap-2"
-                >
-                  <CheckCircle2 className="w-4 h-4" />
-                  Submit Project
-                </button>
-              )}
-              <button
-                onMouseDown={(e) => e.preventDefault()}
-                onClick={() => setValidationResult(null)}
-                className="px-6 py-3 bg-gray-600 text-ink font-medium rounded-lg hover:bg-gray-700 transition-colors"
-              >
-                Reset
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Project Workspace Content */}
-      <div className="container mx-auto px-4 py-8">
-        <div className="max-w-6xl mx-auto">
-          <div className="grid lg:grid-cols-2 gap-8">
-            {/* Instructions */}
-            <div className="bg-card rounded-3xl p-6 border border-card-line">
-              <h2 className="text-xl font-bold text-ink mb-4">Project Instructions</h2>
-              <div className="space-y-4">
-                <div className="rounded-lg p-4 bg-card">
-                  <h3 className="font-semibold text-ink mb-2">Description</h3>
-                  <p className="text-ink-soft text-sm">{selectedProjectForWork.description}</p>
-                </div>
-                
-                <div className="rounded-lg p-4 bg-card">
-                  <h3 className="font-semibold text-ink mb-2">Learning Objectives</h3>
-                  <div className="space-y-2">
-                    {selectedProjectForWork.objectives?.map((obj, index) => (
-                      <div key={index} className="flex items-center gap-2 text-sm text-ink-soft">
-                        <Target className="w-4 h-4 text-forest" />
-                        {obj}
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                <div className="rounded-lg p-4 bg-card">
-                  <h3 className="font-semibold text-ink mb-2">Technologies</h3>
-                  <div className="flex flex-wrap gap-2">
-                    {selectedProjectForWork.technologies?.map((tech, index) => (
-                      <span key={index} className="px-2 py-1 bg-blue-600/20 text-forest text-xs rounded border border-blue-600/30">
-                        {tech}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Code Editor Area */}
-            <div className="bg-card rounded-3xl border border-card-line overflow-hidden">
-              <div className="bg-paper-soft px-4 py-3 border-b border-card-line flex items-center justify-between gap-4">
-                <div className="flex items-center gap-2">
-                  <span className="h-2.5 w-2.5 rounded-full bg-[#f87171] shadow-sm" />
-                  <span className="h-2.5 w-2.5 rounded-full bg-[#fbbf24] shadow-sm" />
-                  <span className="h-2.5 w-2.5 rounded-full bg-[#34d399] shadow-sm" />
-                  <span className="ml-4 text-sm font-medium text-ink">solution.html</span>
-                </div>
-                <span className="text-xs uppercase tracking-[0.2em] text-ink-soft">Code Workspace</span>
-              </div>
-              
-              <div className="p-4 bg-paper rounded-b-3xl border-b border-card-line">
-                <div className="mb-3 px-3 py-2 rounded-2xl bg-card border border-card-line text-xs text-ink-soft flex items-center justify-between">
-                  <span>{selectedProjectForWork?.title || 'Project Code'}</span>
-                  <span className="font-mono text-ink-soft">HTML</span>
-                </div>
-                <textarea
-                  ref={editorRef}
-                  autoFocus
-                  value={userCode}
-                  onChange={(e) => setUserCode(e.target.value)}
-                  placeholder="Write your code here..."
-                  className="w-full h-96 bg-paper text-ink font-mono text-sm leading-6 border border-card-line rounded-3xl p-4 resize-none shadow-inner focus:outline-none focus:ring-2 focus:ring-forest focus:border-forest"
-                  style={{ fontFamily: 'Monaco, Consolas, "Liberation Mono", "Courier New", monospace' }}
-                />
-              </div>
-
-              <div className="px-4 py-3 bg-paper-soft border-t border-card-line">
-                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-                  <span className="text-sm text-ink-soft">
-                    {isValidatingCode ? 'AI is validating your code...' : 'Write your code and click Test Code to get AI feedback.'}
-                  </span>
-                  <button 
-                    onMouseDown={(e) => e.preventDefault()}
-                    onClick={handleTestCode}
-                    disabled={isValidatingCode || !userCode.trim()}
-                    className="inline-flex items-center justify-center gap-2 px-4 py-2 bg-forest text-paper text-sm rounded-full hover:bg-forest-dark transition-colors disabled:bg-gray-400 disabled:text-gray-200 disabled:cursor-not-allowed"
-                  >
-                    {isValidatingCode ? (
-                      <>
-                        <Loader2 className="w-4 h-4 animate-spin" />
-                        Validating...
-                      </>
-                    ) : (
-                      <>
-                        <CheckCircle className="w-4 h-4" />
-                        Test Code
-                      </>
-                    )}
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* AI Validation Results */}
-          {(validationResult || validationError) && (
-            <div className="mt-8">
-              <div className="bg-card rounded-3xl p-6 border border-card-line">
-                <h3 className="text-lg font-bold text-ink mb-4 flex items-center gap-2">
-                  🤖 AI Code Validation Results
-                  {validationResult?.passed && <CheckCircle className="w-5 h-5 text-green-400" />}
-                  {validationResult && !validationResult.passed && <XCircle className="w-5 h-5 text-red-400" />}
-                </h3>
-                
-                {validationError ? (
-                  <div className="bg-red-500/10 border border-red-500/30 rounded-lg p-4">
-                    <div className="flex items-center gap-2 text-red-400 mb-2">
-                      <AlertCircle className="w-4 h-4" />
-                      <span className="font-semibold">Validation Error</span>
-                    </div>
-                    <p className="text-red-300 text-sm">{validationError}</p>
-                  </div>
-                ) : validationResult ? (
-                  <div className="space-y-4">
-                    {/* Score and Overall Status */}
-                    <div className={`p-4 rounded-lg border ${
-                      validationResult.passed 
-                        ? 'bg-green-500/10 border-green-500/30' 
-                        : 'bg-yellow-500/10 border-yellow-500/30'
-                    }`}>
-                      <div className="flex items-center justify-between mb-2">
-                        <span className={`font-semibold ${
-                          validationResult.passed ? 'text-green-400' : 'text-yellow-400'
-                        }`}>
-                          {validationResult.passed ? '✅ Code Validation Passed!' : '⚠️ Code Needs Improvement'}
-                        </span>
-                        <span className="text-ink font-bold text-lg">
-                          Score: {validationResult.score}/100
-                        </span>
-                      </div>
-                      <p className={`text-sm ${
-                        validationResult.passed ? 'text-green-300' : 'text-yellow-300'
-                      }`}>
-                        {validationResult.feedback.overall}
-                      </p>
-                    </div>
-
-                    {/* Detailed Feedback */}
-                    <div className="grid md:grid-cols-2 gap-4">
-                      {/* Strengths */}
-                      {validationResult.feedback.strengths.length > 0 && (
-                        <div className="bg-green-500/5 border border-green-500/20 rounded-lg p-4">
-                          <h4 className="font-semibold text-green-400 mb-2 flex items-center gap-2">
-                            <CheckCircle className="w-4 h-4" />
-                            Strengths
-                          </h4>
-                          <ul className="space-y-1">
-                            {validationResult.feedback.strengths.map((strength, index) => (
-                              <li key={index} className="text-green-300 text-sm">• {strength}</li>
-                            ))}
-                          </ul>
-                        </div>
-                      )}
-
-                      {/* Improvements */}
-                      {validationResult.feedback.improvements.length > 0 && (
-                        <div className="bg-blue-500/5 border border-blue-500/20 rounded-lg p-4">
-                          <h4 className="font-semibold text-blue-400 mb-2 flex items-center gap-2">
-                            <Target className="w-4 h-4" />
-                            Areas for Improvement
-                          </h4>
-                          <ul className="space-y-1">
-                            {validationResult.feedback.improvements.map((improvement, index) => (
-                              <li key={index} className="text-blue-300 text-sm">• {improvement}</li>
-                            ))}
-                          </ul>
-                        </div>
-                      )}
-
-                      {/* Errors */}
-                      {validationResult.feedback.errors.length > 0 && (
-                        <div className="bg-red-500/5 border border-red-500/20 rounded-lg p-4">
-                          <h4 className="font-semibold text-red-400 mb-2 flex items-center gap-2">
-                            <XCircle className="w-4 h-4" />
-                            Critical Issues
-                          </h4>
-                          <ul className="space-y-1">
-                            {validationResult.feedback.errors.map((error, index) => (
-                              <li key={index} className="text-red-300 text-sm">• {error}</li>
-                            ))}
-                          </ul>
-                        </div>
-                      )}
-
-                      {/* Suggestions */}
-                      {validationResult.feedback.suggestions.length > 0 && (
-                        <div className="bg-purple-500/5 border border-purple-500/20 rounded-lg p-4">
-                          <h4 className="font-semibold text-purple-400 mb-2 flex items-center gap-2">
-                            <Star className="w-4 h-4" />
-                            Suggestions
-                          </h4>
-                          <ul className="space-y-1">
-                            {validationResult.feedback.suggestions.map((suggestion, index) => (
-                              <li key={index} className="text-purple-300 text-sm">• {suggestion}</li>
-                            ))}
-                          </ul>
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Next Steps */}
-                    <div className="bg-gray-700/30 rounded-lg p-4 border border-gray-600">
-                      <h4 className="font-semibold text-ink-soft mb-2">Next Steps</h4>
-                      <p className="text-gray-400 text-sm">{validationResult.nextSteps}</p>
-                    </div>
-                  </div>
-                ) : null}
-              </div>
-            </div>
-          )}
-
-          {/* Project Preview */}
-          {selectedProjectForWork.hasVisual && (
-            <div className="mt-8">
-              <div className="bg-card rounded-3xl p-6 border border-card-line">
-                <h3 className="text-lg font-bold text-ink mb-4 flex items-center gap-2">
-                  <Monitor className="w-5 h-5" />
-                  Project Preview
-                </h3>
-                <div className="bg-paper rounded-lg p-8 border border-gray-700">
-                  <div className="text-center text-gray-500">
-                    <ImageIcon className="w-12 h-12 mx-auto mb-2" />
-                    <p className="text-sm">Your project output will appear here when you run the code</p>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-        </div>
-      </div>
-    </div>
-  );
-
-  const ProjectsView = () => {
-    const currentLevelData = projectData[currentLevel];
-    const progress = getLevelProgress(currentLevel);
-    const nextLevel = getNextLevel();
-
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-paper to-paper-soft p-4">
-        <div className="container mx-auto max-w-7xl">
-          {/* Header with role info and overall progress */}
-          <div className="mb-8">
-            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
-              <div>
-                <h1 className="text-3xl font-bold text-gray-900 mb-2">
-                  Frontend Developer Projects
-                </h1>
-                <p className="text-gray-600">
-                  Build real-world projects to master frontend development
-                </p>
-              </div>
-              
-              <div className="flex items-center gap-6">
-                <div className="text-right">
-                  <p className="text-sm text-gray-600">Overall Progress</p>
-                  <div className="flex items-center gap-2">
-                    <div className="w-32 bg-gray-200 rounded-full h-2">
-                      <div
-                        className="bg-gradient-to-r from-green-500 to-blue-500 h-2 rounded-full transition-all duration-300"
-                        style={{ width: `${overallPercentage}%` }}
-                      />
-                    </div>
-                    <span className="text-sm font-semibold text-gray-700">
-                      {overallCompleted}/{overallTotal}
-                    </span>
-                  </div>
-                </div>
-                
-                <div className="text-center">
-                  <Trophy className="w-8 h-8 mx-auto text-yellow-500 mb-1" />
-                  <p className="text-xs text-gray-600">
-                    {Math.round(overallPercentage)}% Complete
-                  </p>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Level Navigation */}
-          <div className="mb-8">
-            <div className="flex flex-wrap gap-2 p-2 bg-white/80 backdrop-blur-sm rounded-2xl border border-card-line shadow-lg">
-              {levelKeys.map((levelKey) => {
-                const levelData = projectData[levelKey];
-                const levelProgress = getLevelProgress(levelKey);
-                const canAccess = canAccessLevel(levelKey);
-                const IconComponent = levelData.icon;
-
-                return (
-                  <button
-                    key={levelKey}
-                    onClick={() => canAccess && setCurrentLevel(levelKey)}
-                    disabled={!canAccess}
-                    className={`
-                      flex-1 min-w-[200px] p-4 rounded-xl font-medium transition-all duration-200
-                      ${currentLevel === levelKey
-                        ? `${levelData.bgColor} ${levelData.textColor} ${levelData.borderColor} border-2 shadow-md`
-                        : canAccess
-                        ? 'bg-white text-gray-600 hover:bg-gray-50 border border-gray-200'
-                        : 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                      }
-                    `}
-                  >
-                    <div className="flex items-center justify-between mb-2">
-                      <div className="flex items-center gap-2">
-                        {canAccess ? (
-                          <IconComponent className="w-5 h-5" />
-                        ) : (
-                          <Lock className="w-5 h-5" />
-                        )}
-                        <span className="capitalize font-semibold">{levelKey}</span>
-                      </div>
-                      {levelProgress.percentage === 100 && (
-                        <CheckCircle2 className="w-5 h-5 text-green-500" />
-                      )}
-                    </div>
-                    
-                    <div className="space-y-1">
-                      <div className="flex justify-between text-sm">
-                        <span>{levelProgress.completed}/{levelProgress.total} completed</span>
-                        <span>{Math.round(levelProgress.percentage)}%</span>
-                      </div>
-                      <div className="w-full bg-gray-200 rounded-full h-1.5">
-                        <div
-                          className={`bg-gradient-to-r ${levelData.color} h-1.5 rounded-full transition-all duration-300`}
-                          style={{ width: `${levelProgress.percentage}%` }}
-                        />
-                      </div>
-                    </div>
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-
-          {/* Current Level Content */}
-          <div className="grid gap-8">
-            {/* Level Header */}
-            <div className={`${currentLevelData.bgColor} rounded-3xl p-8 border-2 ${currentLevelData.borderColor}`}>
-              <div className="flex items-center justify-between mb-6">
-                <div className="flex items-center gap-4">
-                  <div className={`p-4 bg-gradient-to-r ${currentLevelData.color} rounded-2xl text-ink`}>
-                    <currentLevelData.icon className="w-8 h-8" />
-                  </div>
-                  <div>
-                    <h2 className={`text-3xl font-bold ${currentLevelData.textColor} capitalize`}>
-                      {currentLevel} Level
-                    </h2>
-                    <p className={`${currentLevelData.textColor}/80`}>
-                      {currentLevelData.description}
-                    </p>
-                  </div>
-                </div>
-                
-                <div className="text-right">
-                  <div className={`text-2xl font-bold ${currentLevelData.textColor}`}>
-                    {progress.completed}/{progress.total}
-                  </div>
-                  <p className={`text-sm ${currentLevelData.textColor}/70`}>
-                    Projects Completed
-                  </p>
-                </div>
-              </div>
-
-              {/* Progress Bar */}
-              <div className="space-y-2">
-                <div className="flex justify-between text-sm">
-                  <span className={currentLevelData.textColor}>Progress</span>
-                  <span className={currentLevelData.textColor}>
-                    {Math.round(progress.percentage)}%
-                  </span>
-                </div>
-                <div className="w-full bg-card0 rounded-full h-3">
-                  <div
-                    className={`bg-gradient-to-r ${currentLevelData.color} h-3 rounded-full transition-all duration-500`}
-                    style={{ width: `${progress.percentage}%` }}
-                  />
-                </div>
-              </div>
-
-              {/* Level Completion Message */}
-              {isCurrentLevelComplete() && nextLevel && (
-                <div className="mt-6 p-4 bg-white/70 rounded-xl">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <Award className="w-6 h-6 text-yellow-600" />
-                      <div>
-                        <p className="font-semibold text-gray-900">
-                          Congratulations! Level Complete
-                        </p>
-                        <p className="text-sm text-gray-600">
-                          You can now unlock the {nextLevel} level
-                        </p>
-                      </div>
-                    </div>
-                    <button
-                      onClick={() => setCurrentLevel(nextLevel)}
-                      className="px-4 py-2 bg-gradient-to-r from-green-500 to-blue-500 text-ink rounded-lg hover:scale-105 transition-all flex items-center gap-2"
-                    >
-                      Unlock {nextLevel}
-                      <ChevronRight className="w-4 h-4" />
-                    </button>
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {/* Projects Grid */}
-            <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-6">
-              {currentLevelData.projects.map((project) => (
-                <motion.div
-                  key={project.id}
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.3 }}
-                  className="bg-white rounded-2xl p-6 border border-gray-200 hover:border-blue-300 hover:shadow-lg transition-all duration-300 cursor-pointer group"
-                  onClick={() => handleProjectClick(project)}
-                >
-                  <div className="flex items-start justify-between mb-4">
-                    <div className="flex-1">
-                      <h3 className="font-bold text-gray-900 text-lg mb-2 group-hover:text-blue-600 transition-colors">
-                        {project.title}
-                      </h3>
-                      <p className="text-gray-600 text-sm line-clamp-2">
-                        {project.description}
-                      </p>
-                    </div>
-                    <div className="ml-4 flex-shrink-0">
-                      {project.completed ? (
-                        <div className="w-8 h-8 bg-green-500 rounded-full flex items-center justify-center">
-                          <CheckCircle2 className="w-5 h-5 text-ink" />
-                        </div>
-                      ) : (
-                        <div className="w-8 h-8 border-2 border-gray-300 rounded-full group-hover:border-blue-400 transition-colors" />
-                      )}
-                    </div>
-                  </div>
-
-                  <div className="space-y-3">
-                    <div className="flex items-center justify-between text-sm">
-                      <div className="flex items-center gap-2 text-gray-500">
-                        <Clock className="w-4 h-4" />
-                        {project.duration}
-                      </div>
-                      <div className="flex items-center gap-2 text-gray-500">
-                        <Users className="w-4 h-4" />
-                        {project.difficulty}
-                      </div>
-                    </div>
-
-                    <div className="flex flex-wrap gap-1">
-                      {project.technologies?.slice(0, 3).map((tech, index) => (
-                        <span
-                          key={index}
-                          className="px-2 py-1 bg-blue-100 text-blue-700 text-xs rounded-md"
-                        >
-                          {tech}
-                        </span>
-                      ))}
-                      {project.technologies?.length > 3 && (
-                        <span className="px-2 py-1 bg-gray-100 text-gray-600 text-xs rounded-md">
-                          +{project.technologies.length - 3} more
-                        </span>
-                      )}
-                    </div>
-
-                    <div className="pt-2">
-                      <div className="flex items-center justify-between">
-                        <span className="text-sm font-medium text-gray-700">
-                          {project.completed ? 'Completed' : 'Start Project'}
-                        </span>
-                        <ArrowRight className="w-4 h-4 text-gray-400 group-hover:text-blue-500 group-hover:translate-x-1 transition-all" />
-                      </div>
-                    </div>
-                  </div>
-                </motion.div>
-              ))}
-            </div>
-
-            {/* No Projects Message */}
-            {currentLevelData.projects.length === 0 && (
-              <div className="text-center py-12">
-                <Briefcase className="w-16 h-16 mx-auto text-gray-400 mb-4" />
-                <h3 className="text-xl font-semibold text-gray-600 mb-2">
-                  No projects available
-                </h3>
-                <p className="text-gray-500">
-                  Projects for this level are coming soon!
-                </p>
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
-    );
-  };
-
-  // Main render
   return (
     <div>
       <AnimatePresence mode="wait">
-        {currentView === 'projects' && <ProjectsView />}
-        {currentView === 'workspace' && <WorkspaceView />}
+        {currentView === 'projects' && (
+          <ProjectsView
+            projectData={projectData}
+            currentLevel={currentLevel}
+            setCurrentLevel={setCurrentLevel}
+            levelKeys={levelKeys}
+            getLevelProgress={getLevelProgress}
+            canAccessLevel={canAccessLevel}
+            isCurrentLevelComplete={isCurrentLevelComplete}
+            getNextLevel={getNextLevel}
+            overallCompleted={overallCompleted}
+            overallTotal={overallTotal}
+            overallPercentage={overallPercentage}
+            onProjectClick={handleProjectClick}
+          />
+        )}
+        {currentView === 'workspace' && selectedProjectForWork && (
+          <WorkspaceView
+            project={selectedProjectForWork}
+            userCode={userCode}
+            setUserCode={setUserCode}
+            isValidatingCode={isValidatingCode}
+            validationResult={validationResult}
+            validationError={validationError}
+            onTestCode={handleTestCode}
+            onSubmitCode={handleSubmitCode}
+            onResetValidation={() => setValidationResult(null)}
+            onBack={handleBackToProjects}
+            editorRef={editorRef}
+          />
+        )}
       </AnimatePresence>
 
       <AnimatePresence>
-        {showProjectModal && selectedProject && <ProjectModal />}
+        {showProjectModal && selectedProject && (
+          <ProjectModalView
+            project={selectedProject}
+            onClose={() => setShowProjectModal(false)}
+            onStart={handleStartProject}
+          />
+        )}
       </AnimatePresence>
 
       <ExpandProfile />
