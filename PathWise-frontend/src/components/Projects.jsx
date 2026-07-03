@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import roleProjectSets from '../data/roleProjectSets';
 import { ExpandProfile } from "./ExpandProfile";
@@ -78,6 +78,12 @@ export default function ProjectStage() {
   const [isValidatingCode, setIsValidatingCode] = useState(false);
   const [validationResult, setValidationResult] = useState(null);
   const [validationError, setValidationError] = useState(null);
+  const editorRef = useRef(null);
+  useEffect(() => {
+    if (currentView === 'workspace') {
+      setTimeout(() => editorRef.current?.focus(), 0);
+    }
+  }, [currentView]);
 
   // AI Code Validation Functions using NVIDIA NIM API
   const validateCodeWithAI = async (code, project) => {
@@ -147,6 +153,8 @@ Be thorough but constructive in your feedback. If the code passes basic requirem
       setValidationError(`Code validation failed: ${error.message}`);
     } finally {
       setIsValidatingCode(false);
+      // restore focus to editor after validation completes
+      setTimeout(() => editorRef.current?.focus(), 0);
     }
   };
 
@@ -375,12 +383,14 @@ Be thorough but constructive in your feedback. If the code passes basic requirem
 
             <div className="flex gap-3 pt-4">
               <button
+                onMouseDown={(e) => e.preventDefault()}
                 onClick={() => setShowProjectModal(false)}
                 className="flex-1 px-4 py-3 border border-gray-200 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
               >
                 Cancel
               </button>
               <button
+                onMouseDown={(e) => e.preventDefault()}
                 onClick={handleStartProject}
                 className="flex-1 px-4 py-3 bg-green-500 text-ink rounded-lg hover:scale-105 cursor-pointer transition-all flex items-center justify-center gap-2"
               >
@@ -401,22 +411,21 @@ Be thorough but constructive in your feedback. If the code passes basic requirem
         <div className="container mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
-              <button
-                onClick={handleBackToProjects}
+              <button onClick={handleBackToProjects}
                 className="p-2 text-gray-400 hover:text-ink hover:bg-gray-700 rounded-lg transition-colors"
               >
                 <ArrowRight className="w-5 h-5 rotate-180" />
               </button>
               <div>
-                <h1 className="text-xl font-bold text-ink">{selectedProjectForWork.title}</h1>
+                <h1 className="text-xl font-bold text-ink">{selectedProjectForWork?.title}</h1>
                 <div className="flex items-center gap-4 text-sm text-gray-400">
                   <div className="flex items-center gap-1">
                     <Clock className="w-4 h-4" />
-                    {selectedProjectForWork.duration}
+                    <span>{selectedProjectForWork?.duration}</span>
                   </div>
                   <div className="flex items-center gap-1">
                     <Target className="w-4 h-4" />
-                    {selectedProjectForWork.difficulty || 'Beginner'}
+                    <span>{selectedProjectForWork?.difficulty || 'Beginner'}</span>
                   </div>
                 </div>
               </div>
@@ -424,6 +433,7 @@ Be thorough but constructive in your feedback. If the code passes basic requirem
             <div className="flex items-center gap-3">
               {validationResult && validationResult.passed && (
                 <button
+                  onMouseDown={(e) => e.preventDefault()}
                   onClick={handleSubmitCode}
                   className="px-6 py-3 bg-green-600 text-ink font-medium rounded-lg hover:bg-green-700 transition-colors flex items-center gap-2"
                 >
@@ -432,6 +442,7 @@ Be thorough but constructive in your feedback. If the code passes basic requirem
                 </button>
               )}
               <button
+                onMouseDown={(e) => e.preventDefault()}
                 onClick={() => setValidationResult(null)}
                 className="px-6 py-3 bg-gray-600 text-ink font-medium rounded-lg hover:bg-gray-700 transition-colors"
               >
@@ -450,28 +461,28 @@ Be thorough but constructive in your feedback. If the code passes basic requirem
             <div className="bg-card rounded-3xl p-6 border border-card-line">
               <h2 className="text-xl font-bold text-ink mb-4">Project Instructions</h2>
               <div className="space-y-4">
-                <div className="bg-gray-700/50 rounded-lg p-4">
+                <div className="rounded-lg p-4 bg-card">
                   <h3 className="font-semibold text-ink mb-2">Description</h3>
                   <p className="text-ink-soft text-sm">{selectedProjectForWork.description}</p>
                 </div>
                 
-                <div className="bg-gray-700/50 rounded-lg p-4">
+                <div className="rounded-lg p-4 bg-card">
                   <h3 className="font-semibold text-ink mb-2">Learning Objectives</h3>
                   <div className="space-y-2">
                     {selectedProjectForWork.objectives?.map((obj, index) => (
                       <div key={index} className="flex items-center gap-2 text-sm text-ink-soft">
-                        <Target className="w-4 h-4 text-green-400" />
+                        <Target className="w-4 h-4 text-forest" />
                         {obj}
                       </div>
                     ))}
                   </div>
                 </div>
 
-                <div className="bg-gray-700/50 rounded-lg p-4">
+                <div className="rounded-lg p-4 bg-card">
                   <h3 className="font-semibold text-ink mb-2">Technologies</h3>
                   <div className="flex flex-wrap gap-2">
                     {selectedProjectForWork.technologies?.map((tech, index) => (
-                      <span key={index} className="px-2 py-1 bg-blue-600/20 text-green-300 text-xs rounded border border-blue-600/30">
+                      <span key={index} className="px-2 py-1 bg-blue-600/20 text-forest text-xs rounded border border-blue-600/30">
                         {tech}
                       </span>
                     ))}
@@ -487,7 +498,7 @@ Be thorough but constructive in your feedback. If the code passes basic requirem
                   <span className="h-2.5 w-2.5 rounded-full bg-[#f87171] shadow-sm" />
                   <span className="h-2.5 w-2.5 rounded-full bg-[#fbbf24] shadow-sm" />
                   <span className="h-2.5 w-2.5 rounded-full bg-[#34d399] shadow-sm" />
-                  <span className="ml-4 text-sm font-medium text-ink">solution.js</span>
+                  <span className="ml-4 text-sm font-medium text-ink">solution.html</span>
                 </div>
                 <span className="text-xs uppercase tracking-[0.2em] text-ink-soft">Code Workspace</span>
               </div>
@@ -495,9 +506,11 @@ Be thorough but constructive in your feedback. If the code passes basic requirem
               <div className="p-4 bg-paper rounded-b-3xl border-b border-card-line">
                 <div className="mb-3 px-3 py-2 rounded-2xl bg-card border border-card-line text-xs text-ink-soft flex items-center justify-between">
                   <span>{selectedProjectForWork?.title || 'Project Code'}</span>
-                  <span className="font-mono text-ink-soft">JavaScript</span>
+                  <span className="font-mono text-ink-soft">HTML</span>
                 </div>
                 <textarea
+                  ref={editorRef}
+                  autoFocus
                   value={userCode}
                   onChange={(e) => setUserCode(e.target.value)}
                   placeholder="Write your code here..."
@@ -512,6 +525,7 @@ Be thorough but constructive in your feedback. If the code passes basic requirem
                     {isValidatingCode ? 'AI is validating your code...' : 'Write your code and click Test Code to get AI feedback.'}
                   </span>
                   <button 
+                    onMouseDown={(e) => e.preventDefault()}
                     onClick={handleTestCode}
                     disabled={isValidatingCode || !userCode.trim()}
                     className="inline-flex items-center justify-center gap-2 px-4 py-2 bg-forest text-paper text-sm rounded-full hover:bg-forest-dark transition-colors disabled:bg-gray-400 disabled:text-gray-200 disabled:cursor-not-allowed"
