@@ -447,7 +447,7 @@ Be thorough but constructive in your feedback. If the code passes basic requirem
         <div className="max-w-6xl mx-auto">
           <div className="grid lg:grid-cols-2 gap-8">
             {/* Instructions */}
-            <div className="bg-card rounded-3xl p-6 border border-green-700">
+            <div className="bg-card rounded-3xl p-6 border border-card-line">
               <h2 className="text-xl font-bold text-ink mb-4">Project Instructions</h2>
               <div className="space-y-4">
                 <div className="bg-gray-700/50 rounded-lg p-4">
@@ -481,33 +481,40 @@ Be thorough but constructive in your feedback. If the code passes basic requirem
             </div>
 
             {/* Code Editor Area */}
-            <div className="bg-card rounded-3xl border border-green-700 overflow-hidden">
-              <div className="bg-gray-700/50 px-4 py-3 border-b border-gray-600">
+            <div className="bg-card rounded-3xl border border-card-line overflow-hidden">
+              <div className="bg-paper-soft px-4 py-3 border-b border-card-line flex items-center justify-between gap-4">
                 <div className="flex items-center gap-2">
-                  <Code className="w-5 h-5 text-gray-400" />
-                  <span className="text-ink-soft font-medium">Code Editor</span>
+                  <span className="h-2.5 w-2.5 rounded-full bg-[#f87171] shadow-sm" />
+                  <span className="h-2.5 w-2.5 rounded-full bg-[#fbbf24] shadow-sm" />
+                  <span className="h-2.5 w-2.5 rounded-full bg-[#34d399] shadow-sm" />
+                  <span className="ml-4 text-sm font-medium text-ink">solution.js</span>
                 </div>
+                <span className="text-xs uppercase tracking-[0.2em] text-ink-soft">Code Workspace</span>
               </div>
               
-              <div className="p-4">
+              <div className="p-4 bg-paper rounded-b-3xl border-b border-card-line">
+                <div className="mb-3 px-3 py-2 rounded-2xl bg-card border border-card-line text-xs text-ink-soft flex items-center justify-between">
+                  <span>{selectedProjectForWork?.title || 'Project Code'}</span>
+                  <span className="font-mono text-ink-soft">JavaScript</span>
+                </div>
                 <textarea
                   value={userCode}
                   onChange={(e) => setUserCode(e.target.value)}
-                  placeholder="Start writing your code here..."
-                  className="w-full h-96 bg-paper text-gray-100 font-mono text-sm border border-gray-600 rounded-lg p-4 resize-none focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="Write your code here..."
+                  className="w-full h-96 bg-paper text-ink font-mono text-sm leading-6 border border-card-line rounded-3xl p-4 resize-none shadow-inner focus:outline-none focus:ring-2 focus:ring-forest focus:border-forest"
                   style={{ fontFamily: 'Monaco, Consolas, "Liberation Mono", "Courier New", monospace' }}
                 />
               </div>
 
-              <div className="bg-gray-700/50 px-4 py-3 border-t border-gray-600">
-                <div className="flex justify-between items-center">
-                  <span className="text-sm text-gray-400">
-                    {isValidatingCode ? 'AI is validating your code...' : 'AI will validate your code when you test it'}
+              <div className="px-4 py-3 bg-paper-soft border-t border-card-line">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                  <span className="text-sm text-ink-soft">
+                    {isValidatingCode ? 'AI is validating your code...' : 'Write your code and click Test Code to get AI feedback.'}
                   </span>
                   <button 
                     onClick={handleTestCode}
                     disabled={isValidatingCode || !userCode.trim()}
-                    className="px-4 py-2 bg-green-600 text-ink text-sm rounded-lg hover:bg-green-700 transition-colors disabled:bg-gray-600 disabled:cursor-not-allowed flex items-center gap-2"
+                    className="inline-flex items-center justify-center gap-2 px-4 py-2 bg-forest text-paper text-sm rounded-full hover:bg-forest-dark transition-colors disabled:bg-gray-400 disabled:text-gray-200 disabled:cursor-not-allowed"
                   >
                     {isValidatingCode ? (
                       <>
@@ -529,7 +536,7 @@ Be thorough but constructive in your feedback. If the code passes basic requirem
           {/* AI Validation Results */}
           {(validationResult || validationError) && (
             <div className="mt-8">
-              <div className="bg-card rounded-3xl p-6 border border-green-700">
+              <div className="bg-card rounded-3xl p-6 border border-card-line">
                 <h3 className="text-lg font-bold text-ink mb-4 flex items-center gap-2">
                   🤖 AI Code Validation Results
                   {validationResult?.passed && <CheckCircle className="w-5 h-5 text-green-400" />}
@@ -646,7 +653,7 @@ Be thorough but constructive in your feedback. If the code passes basic requirem
           {/* Project Preview */}
           {selectedProjectForWork.hasVisual && (
             <div className="mt-8">
-              <div className="bg-card rounded-3xl p-6 border border-green-700">
+              <div className="bg-card rounded-3xl p-6 border border-card-line">
                 <h3 className="text-lg font-bold text-ink mb-4 flex items-center gap-2">
                   <Monitor className="w-5 h-5" />
                   Project Preview
