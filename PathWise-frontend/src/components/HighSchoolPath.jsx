@@ -114,7 +114,7 @@ function HighSchoolPath() {
 
   if (currentPage === 'fieldSelection') {
     return (
-     <div className="min-h-screen bg-gradient-to-br from-paper via-paper-soft to-paper text-ink relative overflow-hidden">
+     <div className="min-h-screen bg-gradient-to-br from-paper via-paper-soft to-paper text-ink relative overflow-hidden font-body">
       {/* Animated background blurs */}
       <div
         className="absolute pointer-events-none animate-pulse"
@@ -160,17 +160,17 @@ function HighSchoolPath() {
         </div>
        </div>
            <div className='pt-10'>
-            <p className="text-green-400 text-center text-[3rem] mb-2">Let's find your perfect career!</p>
+            <p className="text-forest text-center text-[3rem] mb-2 font-display">Let's find your perfect career!</p>
             <p className="text-ink-soft text-xl mb-6 max-w-2xl text-center mx-auto leading-relaxed">
               Select your field of study to get personalized career recommendations based on your interests and skills
             </p>
           </div>
 
-          <div className="bg-green-600 rounded-2xl p-8 max-w-4xl mx-auto shadow-2xl">
-            <h3 className="text-[2em] font-semibold text-center mb-4">
+          <div className="bg-card rounded-2xl p-8 max-w-4xl mx-auto shadow-2xl border border-card-line">
+            <h3 className="text-[2em] font-semibold text-center mb-4 font-display text-ink">
               What field are you studying?
             </h3>
-            <p className="text-center text-green-100 text-sm mb-8">
+            <p className="text-center text-ink-soft text-sm mb-8">
               Choose your field to answer 15 tailored questions
             </p>
 
@@ -252,7 +252,7 @@ function HighSchoolPath() {
           </div>
 
           <div className="max-w-3xl mx-auto">
-            <div className="bg-green-600 rounded-2xl p-8 shadow-2xl">
+            <div className="bg-card rounded-2xl p-8 shadow-2xl border border-card-line">
               <div className="mb-6">
                 <div className="flex justify-between items-center mb-4">
                   <span className="text-sm font-medium text-ink">
@@ -262,37 +262,40 @@ function HighSchoolPath() {
                     {selectedField.charAt(0).toUpperCase() + selectedField.slice(1)}
                   </span>
                 </div>
-                <div className="w-full bg-card rounded-full h-2">
+                <div className="w-full bg-card-line rounded-full h-3">
                   <div
-                    className="bg-white h-2 rounded-full transition-all duration-300"
+                    className="bg-gradient-to-r from-forest to-forest-dark h-3 rounded-full transition-all duration-300"
                     style={{ width: `${((currentQuestion + 1) / questions.length) * 100}%` }}
                   ></div>
                 </div>
               </div>
 
-              <h2 className="text-3xl font-bold text-ink mb-10 text-center">
+              <h2 className="text-3xl font-bold text-ink mb-10 text-center font-display">
                 {currentQ.question}
               </h2>
 
               <div className="space-y-4">
                 <button
                   onClick={() => handleAnswer('yes')}
-                  className="w-full p-6 text-left bg-white hover:bg-gray-50 hover:scale-105 rounded-2xl transition-all duration-200 shadow-lg"
+                  className="w-full p-6 text-left bg-white hover:bg-gray-50 hover:scale-105 rounded-2xl transition-all duration-200 shadow-lg flex items-center gap-4"
                 >
-                  <span className="font-bold text-green-600 text-xl">Yes, definitely!</span>
+                  <span className="flex h-4 w-4 rounded-full bg-forest mt-1" />
+                  <span className="font-bold text-forest text-xl">Yes, definitely!</span>
                 </button>
                 
                 <button
                   onClick={() => handleAnswer('maybe')}
-                  className="w-full p-6 text-left bg-white hover:bg-gray-50 hover:scale-105 rounded-2xl transition-all duration-200 shadow-lg"
+                  className="w-full p-6 text-left bg-white hover:bg-gray-50 hover:scale-105 rounded-2xl transition-all duration-200 shadow-lg flex items-center gap-4"
                 >
+                  <span className="flex h-4 w-4 rounded-full bg-yellow-500 mt-1" />
                   <span className="font-bold text-yellow-600 text-xl">Maybe / Sometimes</span>
                 </button>
                 
                 <button
                   onClick={() => handleAnswer('no')}
-                  className="w-full p-6 text-left bg-white hover:bg-gray-50 hover:scale-105 rounded-2xl transition-all duration-200 shadow-lg"
+                  className="w-full p-6 text-left bg-white hover:bg-gray-50 hover:scale-105 rounded-2xl transition-all duration-200 shadow-lg flex items-center gap-4"
                 >
+                  <span className="flex h-4 w-4 rounded-full bg-red-600 mt-1" />
                   <span className="font-bold text-red-600 text-xl">No, not really</span>
                 </button>
               </div>
@@ -372,11 +375,11 @@ function HighSchoolPath() {
           </div>
 
           <div className="max-w-4xl mx-auto">
-            <div className="bg-green-600 rounded-2xl p-8 shadow-2xl">
-              <h3 className="text-2xl font-semibold text-center mb-2">
+            <div className="bg-card rounded-2xl p-8 shadow-2xl border border-card-line">
+              <h3 className="text-2xl font-semibold text-center mb-2 font-display text-ink">
                 Top 3 Career Paths for You
               </h3>
-              <p className="text-center text-green-100 mb-8">
+              <p className="text-center text-ink-soft mb-8">
                 These careers align best with your interests and strengths
               </p>
 
@@ -400,11 +403,11 @@ function HighSchoolPath() {
                           <div className="flex items-center gap-3">
                             <div className="flex-1 bg-gray-200 rounded-full h-3">
                               <div
-                                className="bg-gradient-to-r from-green-500 to-green-600 h-3 rounded-full transition-all duration-500"
+                                className="bg-gradient-to-r from-forest to-forest-dark h-3 rounded-full transition-all duration-500"
                                 style={{ width: `${(result.score / results[0].score) * 100}%` }}
                               ></div>
                             </div>
-                            <span className="text-sm font-bold text-green-600">
+                            <span className="text-sm font-bold text-forest">
                               {Math.round((result.score / results[0].score) * 100)}% match
                             </span>
                           </div>
