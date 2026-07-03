@@ -51,8 +51,8 @@ export async function callNimApi({
         })
       });
 
-      // If the worker limit is reached (503 Service Unavailable) or rate limit is hit (429 Too Many Requests)
-      if (response.status === 429 || response.status === 503) {
+      // Rotate on rate limits (429), worker exhaustion (503), or authorization failures (401/403)
+      if (response.status === 401 || response.status === 403 || response.status === 429 || response.status === 503) {
         const errorText = await response.text();
         console.warn(`[NIM API] Key index ${currentKeyIndex} failed with HTTP ${response.status}. Rotating key...`, errorText);
         

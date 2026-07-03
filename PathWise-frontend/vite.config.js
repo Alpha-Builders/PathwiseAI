@@ -23,12 +23,12 @@ export default defineConfig(({ mode }) => {
       }
     },
     define: {
-      'process.env.NIM_API1': JSON.stringify(env.nim_api1),
-      'process.env.NIM1': JSON.stringify(env.nim1),
-      'process.env.NIM2': JSON.stringify(env.nim2),
-      'process.env.NIM3': JSON.stringify(env.nim3),
-      'process.env.NIM4': JSON.stringify(env.nim4),
-      'process.env.NIM5': JSON.stringify(env.nim5),
+      'process.env.NIM_API1': JSON.stringify(env.nim_api1 || env.NIM_API1 || ""),
+      'process.env.NIM1': JSON.stringify(env.nim1 || env.NIM1 || ""),
+      'process.env.NIM2': JSON.stringify(env.nim2 || env.NIM2 || ""),
+      'process.env.NIM3': JSON.stringify(env.nim3 || env.NIM3 || ""),
+      'process.env.NIM4': JSON.stringify(env.nim4 || env.NIM4 || ""),
+      'process.env.NIM5': JSON.stringify(env.nim5 || env.NIM5 || ""),
     }
   }
 })
