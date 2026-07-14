@@ -76,4 +76,4 @@ It helps users explore career paths, build relevant skills, and complete hands-o
 
 ## 📄 License
 
-This repository is currently configured as a private project.
+This repository is currently configured as a private project
